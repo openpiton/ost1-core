@@ -27,6 +27,12 @@
 // Global header file includes
 ////////////////////////////////////////////////////////////////////////
 
+<%
+   import math
+   import pyhplib
+   from pyhplib import *
+%>
+
 `include "sys.h"
 `include "lsu.tmp.h"
 `include "ifu.tmp.h"
@@ -73,7 +79,7 @@ module sparc_ifu_errdp(/*AUTOARG*/
 		            wsel_fdp_topdata_s1;
    input [33:0] wsel_erb_asidata_s;
    
-   input [`IC_TAG_ALL_HI:0] ict_itlb_tags_f;
+   input [`IC_TLB_TAG_MASK_ALL] ict_itlb_tags_f;
    input [3:0]              icv_itlb_valid_f;
 
    input [47:4]  lsu_ifu_err_addr;
@@ -154,9 +160,9 @@ module sparc_ifu_errdp(/*AUTOARG*/
 
    wire [47:4]   lsu_err_addr;
    
-   wire [`IC_TAG_ALL_HI:0]  ictags_s1;
+   wire [`IC_TLB_TAG_MASK_ALL]  ictags_s1;
    wire [3:0]               icv_data_s1;
-   wire [31:0]              tag_asi_data;
+   reg  [34:0]              tag_asi_data;
 
    wire [47:4]              t0_eadr_mx0_out,
 		                        t1_eadr_mx0_out,
@@ -211,7 +217,7 @@ module sparc_ifu_errdp(/*AUTOARG*/
 //-------------
 // Tags
 //-------------   
-   dff_s #(`IC_TAG_ALL) tags_reg(.din (ict_itlb_tags_f),
+   dff_s #(`IC_TLB_TAG_SZ * `IC_NUM_WAY) tags_reg(.din (ict_itlb_tags_f),
 		                           .q   (ictags_s1),
 		                           .clk (clk),
 		                           .se  (se), .si(), .so());
@@ -220,25 +226,82 @@ module sparc_ifu_errdp(/*AUTOARG*/
 		                  .q   (icv_data_s1),
 		                  .clk (clk), .se(se), .si(), .so());
 
-   // check parity
-   sparc_ifu_par32  tag_par0(.in  ({3'b0, ictags_s1[`IC_TAG_SZ:0]}),
-			                       .out (erd_erc_tagpe_s1[0]));
-   sparc_ifu_par32  tag_par1(.in  ({3'b0, ictags_s1[((2*`IC_TAG_SZ) + 1):(`IC_TAG_SZ+1)]}),
-			                       .out (erd_erc_tagpe_s1[1]));
-   sparc_ifu_par32  tag_par2(.in  ({3'b0, ictags_s1[((3*`IC_TAG_SZ) + 2):(2*(`IC_TAG_SZ)+2)]}),
-			                       .out (erd_erc_tagpe_s1[2]));
-   sparc_ifu_par32  tag_par3(.in  ({3'b0, ictags_s1[((4*`IC_TAG_SZ) + 3):(3*(`IC_TAG_SZ)+3)]}),
-			                       .out (erd_erc_tagpe_s1[3]));
+   // // check parity
+   // sparc_ifu_par32  tag_par0(.in  ({{`IC_TLB_PARITY_PADDING{1'b0}}, ictags_s1[`IC_TLB_TAG_WAY0_MASK]}),
+			//                        .out (erd_erc_tagpe_s1[0]));
+   // sparc_ifu_par32  tag_par1(.in  ({{`IC_TLB_PARITY_PADDING{1'b0}}, ictags_s1[`IC_TLB_TAG_WAY1_MASK]}),
+			//                        .out (erd_erc_tagpe_s1[1]));
+   // sparc_ifu_par32  tag_par2(.in  ({{`IC_TLB_PARITY_PADDING{1'b0}}, ictags_s1[`IC_TLB_TAG_WAY2_MASK]}),
+			//                        .out (erd_erc_tagpe_s1[2]));
+   // sparc_ifu_par32  tag_par3(.in  ({{`IC_TLB_PARITY_PADDING{1'b0}}, ictags_s1[`IC_TLB_TAG_WAY3_MASK]}),
+			//                        .out (erd_erc_tagpe_s1[3]));
 
-   dp_mux4ds #(32) asitag_mux(.dout (tag_asi_data[31:0]),
-			 .in0  ({icv_data_s1[0], 1'b0, ictags_s1[28], 1'b0, ictags_s1[27:0]}),
-			 .in1  ({icv_data_s1[1], 1'b0, ictags_s1[57], 1'b0, ictags_s1[56:29]}),
-			 .in2  ({icv_data_s1[2], 1'b0, ictags_s1[86], 1'b0, ictags_s1[85:58]}),
-			 .in3  ({icv_data_s1[3], 1'b0, ictags_s1[115], 1'b0, ictags_s1[114:87]}),
-			 .sel0_l (erc_erd_asiway_s1_l[0]),
-			 .sel1_l (erc_erd_asiway_s1_l[1]),
-			 .sel2_l (erc_erd_asiway_s1_l[2]),
-			 .sel3_l (erc_erd_asiway_s1_l[3]));
+`ifdef NO_IC_TLB_PARITY_PADDING
+   <%
+      for i in range(CONFIG_L1I_ASSOCIATIVITY):
+         text = '''
+            sparc_ifu_par32  tag_par__WAY(.in  (ictags_s1[`IC_TLB_TAG_WAY__WAY_MASK]),
+                                    .out (erd_erc_tagpe_s1[__WAY]));
+         '''
+         text = text.replace("__WAY", `i`)
+         print(text)
+   %>
+`else
+   <%
+      for i in range(CONFIG_L1I_ASSOCIATIVITY):
+         text = '''
+            sparc_ifu_par32  tag_par__WAY(.in  ({{`IC_TLB_PARITY_PADDING{1'b0}}, ictags_s1[`IC_TLB_TAG_WAY__WAY_MASK]}),
+                                    .out (erd_erc_tagpe_s1[__WAY]));
+         '''
+         text = text.replace("__WAY", `i`)
+         print(text)
+   %>
+`endif
+
+   // dp_mux4ds #(32) asitag_mux(.dout (tag_asi_data[31:0]),
+			//  .in0  ({icv_data_s1[0], 1'b0, ictags_s1[28], 1'b0, ictags_s1[27:0]}),
+			//  .in1  ({icv_data_s1[1], 1'b0, ictags_s1[57], 1'b0, ictags_s1[56:29]}),
+			//  .in2  ({icv_data_s1[2], 1'b0, ictags_s1[86], 1'b0, ictags_s1[85:58]}),
+			//  .in3  ({icv_data_s1[3], 1'b0, ictags_s1[115], 1'b0, ictags_s1[114:87]}),   
+			 // .sel0_l (erc_erd_asiway_s1_l[0]),
+			 // .sel1_l (erc_erd_asiway_s1_l[1]),
+			 // .sel2_l (erc_erd_asiway_s1_l[2]),
+			 // .sel3_l (erc_erd_asiway_s1_l[3]));
+
+<%
+   for i in range(CONFIG_L1I_ASSOCIATIVITY):
+      tt = "wire [(`IC_TAG_SZ+2)-1:0] icv_data_s1__WAY = {icv_data_s1[__WAY], ictags_s1[(`IC_TAG_SZ+1)*(__WAY+1)-1], ictags_s1[(`IC_TAG_SZ+1)*(__WAY+1)-2 -: `IC_TAG_SZ]};"
+      print(tt.replace("__WAY", `i`))
+%>
+
+always @ *
+begin
+<%
+   print("tag_asi_data = 0;")
+   for i in range(CONFIG_L1I_ASSOCIATIVITY):
+      if i == 0:
+         text = '''
+            if (erc_erd_asiway_s1_l[__WAY] == 1'b0)
+            begin
+               tag_asi_data[(`IC_TAG_SZ-1):0] = icv_data_s1__WAY[(`IC_TAG_SZ-1):0];
+               tag_asi_data[32] = icv_data_s1__WAY[`IC_TAG_SZ];
+               tag_asi_data[34] = icv_data_s1__WAY[`IC_TAG_SZ+1];
+            end
+         '''
+      else:
+         text = '''
+            else if (erc_erd_asiway_s1_l[__WAY] == 1'b0)
+            begin
+               tag_asi_data[(`IC_TAG_SZ-1):0] = icv_data_s1__WAY[(`IC_TAG_SZ-1):0];
+               tag_asi_data[32] = icv_data_s1__WAY[`IC_TAG_SZ];
+               tag_asi_data[34] = icv_data_s1__WAY[`IC_TAG_SZ+1];
+            end
+         '''
+      text = text.replace("__WAY", `i`)
+      print(text)
+%>
+end
+
 
 //------------------
 // Data
@@ -408,9 +471,7 @@ module sparc_ifu_errdp(/*AUTOARG*/
 
    dp_mux3ds #(64) misc_asi_mux(.dout (misc_asi_data[63:0]),
 			      .in0  ({29'b0, 
-				            tag_asi_data[31:28], 
-				            3'b0, 
-				            tag_asi_data[27:0]}),
+				            tag_asi_data[34:0]}),
 			      .in1  ({25'b0, erb_dtu_imask}),
 			      .in2  (64'b0),
 			      .sel0_l (erc_erd_miscasi_sel_ict_l),

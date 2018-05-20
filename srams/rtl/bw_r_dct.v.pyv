@@ -38,6 +38,12 @@
  //     way enable     |
  */
 
+<%
+   import math
+   import pyhplib
+   from pyhplib import *
+%>
+
 
 ////////////////////////////////////////////////////////////////////////
 // Local header file includes / local defines
@@ -59,14 +65,20 @@
 `ifdef FPGA_SYN_DCT
 
 //`ifndef IBM_SRAM_CACHE_TAG
-module bw_r_dct (rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
+module bw_r_dct(
+  // rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, 
+  rdtag_y, so, rclk, se,
 //`else
 //module bw_r_dct_orig(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
 //`endif
-  si, reset_l, sehold, rst_tri_en, index0_x, index1_x, index_sel_x,
-  dec_wrway_x, rdreq_x, wrreq_x, wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
-  wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
-  wrtag_w3_x, adj,
+	si, reset_l, sehold, rst_tri_en, index0_x, index1_x, index_sel_x,
+	dec_wrway_x, rdreq_x, wrreq_x, 
+  // wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
+	// wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
+  // wrtag_w3_x, 
+
+  wrtag_x, wrtag_y,
+  adj,
 
   // sram wrapper interface
   sramid,
@@ -75,27 +87,29 @@ module bw_r_dct (rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
   rtap_srams_bist_data
   );
 
-  input     rclk;
-  input     se;
-  input     si;
-  input     reset_l;
-  input     sehold;
-  input     rst_tri_en;
-  input [6:0]   index0_x;
-  input [6:0]   index1_x;
-  input     index_sel_x;
-  input [3:0]   dec_wrway_x;
-  input     rdreq_x;
-  input     wrreq_x;
-  input [32:0]    wrtag_w0_y;
-  input [32:0]    wrtag_w1_y;
-  input [32:0]    wrtag_w2_y;
-  input [32:0]    wrtag_w3_y;
-  input [32:0]    wrtag_w0_x;
-  input [32:0]    wrtag_w1_x;
-  input [32:0]    wrtag_w2_x;
-  input [32:0]    wrtag_w3_x;
-  input [3:0]   adj;
+	input			rclk;
+	input			se;
+	input			si;
+	input			reset_l;
+	input			sehold;
+	input			rst_tri_en;
+	input	[`L1D_SET_IDX_MASK]		index0_x;
+	input	[`L1D_SET_IDX_MASK]		index1_x;
+	input			index_sel_x;
+	input	[`L1D_WAY_COUNT-1:0]		dec_wrway_x;
+	input			rdreq_x;
+	input			wrreq_x;
+	input	[32:0]		wrtag_y;
+  input [32:0]    wrtag_x;
+ //  input [32:0]    wrtag_w0_y;
+	// input	[32:0]		wrtag_w1_y;
+	// input	[32:0]		wrtag_w2_y;
+	// input	[32:0]		wrtag_w3_y;
+ //  input [32:0]    wrtag_w0_x;
+ //  input [32:0]    wrtag_w1_x;
+ //  input [32:0]    wrtag_w2_x;
+ //  input [32:0]    wrtag_w3_x;
+	input	[`L1D_WAY_COUNT-1:0]		adj;
 
   // sram wrapper interface
   output [`SRAM_WRAPPER_BUS_WIDTH-1:0] srams_rtap_data;
@@ -108,69 +122,71 @@ module bw_r_dct (rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
                 | rtap_srams_bist_data
                 | sramid;
 
-  output  [32:0]    rdtag_w0_y;
-  output  [32:0]    rdtag_w1_y;
-  output  [32:0]    rdtag_w2_y;
-  output  [32:0]    rdtag_w3_y;
-  output      so;
+	// output	[32:0]		rdtag_w0_y;
+	// output	[32:0]		rdtag_w1_y;
+	// output	[32:0]		rdtag_w2_y;
+	// output	[32:0]		rdtag_w3_y;
+  output  [`L1D_TAG_ARRAY_REAL_WIDTH-1:0]    rdtag_y;
+	output			so;
 
-  wire      clk;
-  reg [6:0]   index_y;
-  reg     rdreq_y;
-  reg     wrreq_y;
-  reg [3:0]   dec_wrway_y;
-  wire  [6:0]   index_x;
-  wire  [3:0]   we;
+	wire			clk;
+	reg	[`L1D_SET_IDX_MASK]		index_y;
+	reg			rdreq_y;
+	reg			wrreq_y;
+	reg	[`L1D_WAY_COUNT-1:0]		dec_wrway_y;
+	wire	[`L1D_SET_IDX_MASK]		index_x;
+	wire	[`L1D_WAY_COUNT-1:0]		we;
 
-    reg [131:0]  rdtag_sa_y; //for error_inject XMR
+   	reg [131:0]  rdtag_sa_y; //for error_inject XMR
 
-  assign clk = rclk;
-  assign index_x = (index_sel_x ? index1_x : index0_x);
+	assign clk = rclk;
+	assign index_x = (index_sel_x ? index1_x : index0_x);
     assign we = ({4 {((wrreq_y & reset_l) & (~rst_tri_en))}} & dec_wrway_y);
 
-  always @(posedge clk) begin
-    if (~sehold) begin
-      rdreq_y <= rdreq_x;
-      wrreq_y <= wrreq_x;
-      index_y <= index_x;
-      dec_wrway_y <= dec_wrway_x;
-    end
-  end
+	always @(posedge clk) begin
+	  if (~sehold) begin
+	    rdreq_y <= rdreq_x;
+	    wrreq_y <= wrreq_x;
+	    index_y <= index_x;
+	    dec_wrway_y <= dec_wrway_x;
+	  end
+	end
 
-  bw_r_dct_array ictag_ary_00(
-    .we (we[0]),
-    .clk  (clk),
+  // trin: used?
+	bw_r_dct_array ictag_ary_00(
+		.we	(we[0]),
+		.clk	(clk),
         .way (2'b00),
-    .rd_data(rdtag_w0_y),
-    .wr_data(wrtag_w0_y),
-    .addr (index_y),
+		.rd_data(rdtag_w0_y),
+		.wr_data(wrtag_y),
+		.addr	(index_y),
         .dec_wrway_y (dec_wrway_y));
 
-  bw_r_dct_array ictag_ary_01(
-    .we (we[1]),
-    .clk  (clk),
+	bw_r_dct_array ictag_ary_01(
+		.we	(we[1]),
+		.clk	(clk),
         .way (2'b01),
-    .rd_data(rdtag_w1_y),
-    .wr_data(wrtag_w1_y),
-    .addr (index_y),
+		.rd_data(rdtag_w1_y),
+		.wr_data(wrtag_y),
+		.addr	(index_y),
         .dec_wrway_y (dec_wrway_y));
 
-  bw_r_dct_array ictag_ary_10(
-    .we (we[2]),
-    .clk  (clk),
+	bw_r_dct_array ictag_ary_10(
+		.we	(we[2]),
+		.clk	(clk),
         .way(2'b10),
-    .rd_data(rdtag_w2_y),
-    .wr_data(wrtag_w2_y),
-    .addr (index_y),
+		.rd_data(rdtag_w2_y),
+		.wr_data(wrtag_y),
+		.addr	(index_y),
         .dec_wrway_y (dec_wrway_y));
 
-  bw_r_dct_array ictag_ary_11(
-    .we (we[3]),
-    .clk  (clk),
+	bw_r_dct_array ictag_ary_11(
+		.we	(we[3]),
+		.clk	(clk),
         .way(2'b11),
-    .rd_data(rdtag_w3_y),
-    .wr_data(wrtag_w3_y),
-    .addr (index_y),
+		.rd_data(rdtag_w3_y),
+		.wr_data(wrtag_y),
+		.addr	(index_y),
         .dec_wrway_y (dec_wrway_y));
 
 endmodule
@@ -180,13 +196,13 @@ module bw_r_dct_array(we, clk, rd_data, wr_data, addr,dec_wrway_y,way);
 input we;
 input clk;
 input [32:0] wr_data;
-input [6:0] addr;
-input [3:0] dec_wrway_y;
+input [`L1D_SET_IDX_MASK] addr;
+input [`L1D_WAY_COUNT-1:0] dec_wrway_y;
 input [1:0] way;
 output [32:0] rd_data;
 reg [32:0] rd_data;
 
-reg [32:0]    array[511:0] /* synthesis syn_ramstyle = block_ram  syn_ramstyle = no_rw_check */ ;
+reg	[32:0]		array[511:0] /* synthesis syn_ramstyle = block_ram  syn_ramstyle = no_rw_check */ ;
 integer i;
 
 initial begin
@@ -201,14 +217,14 @@ initial begin
   end
 end
 
-  always @(negedge clk) begin
-    if (we)
+	always @(negedge clk) begin
+	  if (we)
           begin
               array[addr] <= wr_data;
           end
-    else
+	  else
           rd_data <= array[addr];
-  end
+	end
 endmodule
 
 `else
@@ -219,12 +235,19 @@ module bw_r_dct(/*AUTOARG*/
 //module bw_r_dct_orig(/*AUTOARG*/
 //`endif
    // Outputs
-   rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so,
+   // rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_y, rdtag_w3_y, 
+   rdtag_y,
+   so,
    // Inputs
    rclk, se, si, reset_l, sehold, rst_tri_en, index0_x, index1_x,
-   index_sel_x, dec_wrway_x, rdreq_x, wrreq_x, wrtag_w0_y,
-   wrtag_w1_y, wrtag_w2_y, wrtag_w3_y, wrtag_w0_x,
-   wrtag_w1_x, wrtag_w2_x, wrtag_w3_x, adj,
+   index_sel_x, dec_wrway_x, rdreq_x, wrreq_x,
+
+  wrtag_x, wrtag_y,
+   // wrtag_w0_y,
+   // wrtag_w1_y, wrtag_w2_y, wrtag_w3_y, wrtag_w0_x,
+   // wrtag_w1_x, wrtag_w2_x, wrtag_w3_x, 
+
+   adj,
 
   // sram wrapper interface
   sramid,
@@ -242,32 +265,34 @@ module bw_r_dct(/*AUTOARG*/
    input          sehold;
    input          rst_tri_en;
 
-   input [6:0]    index0_x;     // read/write address0
-   input [6:0]    index1_x;     // read/write address1
+   input [`L1D_SET_IDX_MASK]    index0_x;     // read/write address0
+   input [`L1D_SET_IDX_MASK]    index1_x;     // read/write address1
 
    input          index_sel_x;  // selects between index1 and index0
 
-   input [3:0]    dec_wrway_x;  // way -- functions as a write enable
+   input [`L1D_WAY_COUNT-1:0]    dec_wrway_x;  // way -- functions as a write enable
                                 // per 33b
 
    input          rdreq_x,      // read enable
-                  wrreq_x;      // write enable
+		              wrreq_x;      // write enable
 
    // Don't use rdreq and wrreq to gate off the clock, since these are
    // critical.  A separate power down signal can be supplied if
    // needed.
 
-   input [32:0]   wrtag_w0_y;      // write data, not flopped
-   input [32:0]   wrtag_w1_y;      //
-   input [32:0]   wrtag_w2_y;      //
-   input [32:0]   wrtag_w3_y;      //
+  input [32:0]    wrtag_y;
+  input [32:0]    wrtag_x;
+   // input [32:0]   wrtag_w0_y;      // write data, not flopped
+   // input [32:0]   wrtag_w1_y;      //
+   // input [32:0]   wrtag_w2_y;      //
+   // input [32:0]   wrtag_w3_y;      //
+// 
+   // input [32:0]   wrtag_w0_x;      // write data, not flopped
+   // input [32:0]   wrtag_w1_x;      //
+   // input [32:0]   wrtag_w2_x;      //
+   // input [32:0]   wrtag_w3_x;      //
 
-   input [32:0]   wrtag_w0_x;      // write data, not flopped
-   input [32:0]   wrtag_w1_x;      //
-   input [32:0]   wrtag_w2_x;      //
-   input [32:0]   wrtag_w3_x;      //
-
-   input [3:0]    adj;
+   input [`L1D_WAY_COUNT-1:0]    adj;
 
   // sram wrapper interface
   output [`SRAM_WRAPPER_BUS_WIDTH-1:0] srams_rtap_data;
@@ -281,10 +306,11 @@ module bw_r_dct(/*AUTOARG*/
                 | sramid;
 
 
-   output [32:0] rdtag_w0_y;    // read data split into 4 ports
-   output [32:0] rdtag_w1_y;    // not flopped
-   output [32:0] rdtag_w2_y;    //
-   output [32:0] rdtag_w3_y;    //
+   // output [32:0] rdtag_w0_y;    // read data split into 4 ports
+   // output [32:0] rdtag_w1_y;    // not flopped
+   // output [32:0] rdtag_w2_y;    //
+   // output [32:0] rdtag_w3_y;    //
+   output  [`L1D_TAG_ARRAY_REAL_WIDTH-1:0]    rdtag_y;
 
    output        so;
 
@@ -301,12 +327,12 @@ module bw_r_dct(/*AUTOARG*/
    wire         clk;
 
 
-   reg [6:0]    index_y;
+   reg [`L1D_SET_IDX_MASK]    index_y;
    reg          rdreq_y,
-                wrreq_y;
-   reg [3:0]    dec_wrway_y;
+		            wrreq_y;
+   reg [`L1D_WAY_COUNT-1:0]    dec_wrway_y;
 
-   wire [6:0]   index_x;
+   wire [`L1D_SET_IDX_MASK]   index_x;
 
 
    //----------------
@@ -342,9 +368,10 @@ module bw_r_dct(/*AUTOARG*/
 wire [131:0] wm = { {33{(dec_wrway_y[3])}},{33{(dec_wrway_y[2])}},{33{(dec_wrway_y[1])}},{33{(dec_wrway_y[0])}} };
 wire         we = wrreq_y & ~se;
 
-l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
-                                              .din ({wrtag_w3_y,wrtag_w2_y,wrtag_w1_y,wrtag_w0_y}),
-                                              .dout({rdtag_w3_y,rdtag_w2_y,rdtag_w1_y,rdtag_w0_y}) );
+l1_tag l1_tag ( .nclk(~clk), .adr(index_y[`L1D_SET_IDX_MASK]), .we(we), .wm(wm),
+                                              .din ({wrtag_y,wrtag_y,wrtag_y,wrtag_y}),
+                                              .dout(rdtag_y) );
+// TRIN_NOT_USED;
 `else
 
    //----------------------------------------------------------------------
@@ -354,20 +381,20 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
    always @(/*AUTOSENSE*/ /*memory or*/ index_y or rdreq_y or reset_l
             or wrreq_y)
      begin
-        if (rdreq_y & reset_l)
+	      if (rdreq_y & reset_l)
           begin
              if (wrreq_y)    // rd_wr conflict
-               begin
-                  rdtag_bl_y = {132{1'bx}};
-               end
+	             begin
+	                rdtag_bl_y = {132{1'bx}};
+	             end
 
-             else   // no write, read only
-               begin
+	           else   // no write, read only
+	             begin
                   rdtag_bl_y[32:0] = ictag_ary[{index_y,2'b00}];  // way0
                   rdtag_bl_y[65:33] = ictag_ary[{index_y,2'b01}]; // way1
                   rdtag_bl_y[98:66] = ictag_ary[{index_y,2'b10}]; // way2
                   rdtag_bl_y[131:99] = ictag_ary[{index_y,2'b11}];// way3
-               end
+	             end
           end
         else    // no read
           begin
@@ -395,10 +422,18 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
    // unchanging to keep the power low.
 
    // Final Output
-   assign rdtag_w0_y = rdtag_sa_y[32:0];
-   assign rdtag_w1_y = rdtag_sa_y[65:33];
-   assign rdtag_w2_y = rdtag_sa_y[98:66];
-   assign rdtag_w3_y = rdtag_sa_y[131:99];
+   // assign rdtag_w0_y = rdtag_sa_y[32:0];
+   // assign rdtag_w1_y = rdtag_sa_y[65:33];
+   // assign rdtag_w2_y = rdtag_sa_y[98:66];
+   // assign rdtag_w3_y = rdtag_sa_y[131:99];
+
+   <%
+      #for i in range(CONFIG_L1D_ASSOCIATIVITY):
+        #print "assign rdtag_w%d_y = rdtag_sa_y[`L1D_TAG_REAL_ARRAY_WAY%d_MASK];" % (i,i)
+        #print "assign rdtag_y[`L1D_TAG_ARRAY_WAY%d_MASK] = rdtag_w%d_y[`L1D_TAG_ARRAY_WAY%d_MASK];" % (i,i,i)
+   %>
+
+   assign rdtag_y = rdtag_sa_y;
 
    integer i;
    initial
@@ -413,19 +448,29 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
    // Write Operation
    //----------------------------------------------------------------------
    // Writes should be blocked off during scan shift.
+
+   reg [`L1D_SET_IDX_WIDTH+`L1D_WAY_WIDTH-1:0] write_index_y;
+
    always @ (negedge clk)
      begin
-     if (wrreq_y & reset_l & ~rst_tri_en)
-     begin
-             if (dec_wrway_y[0])
-               ictag_ary[{index_y, 2'b00}] = wrtag_w0_y;
-             if (dec_wrway_y[1])
-               ictag_ary[{index_y, 2'b01}] = wrtag_w1_y;
-             if (dec_wrway_y[2])
-               ictag_ary[{index_y, 2'b10}] = wrtag_w2_y;
-             if (dec_wrway_y[3])
-               ictag_ary[{index_y, 2'b11}] = wrtag_w3_y;
-     end
+	   if (wrreq_y & reset_l & ~rst_tri_en)
+	   begin
+             // if (dec_wrway_y[0])
+	            //  ictag_ary[{index_y, 2'b00}] = wrtag_y;
+             // if (dec_wrway_y[1])
+	            //  ictag_ary[{index_y, 2'b01}] = wrtag_y;
+             // if (dec_wrway_y[2])
+	            //  ictag_ary[{index_y, 2'b10}] = wrtag_y;
+             // if (dec_wrway_y[3])
+	            //  ictag_ary[{index_y, 2'b11}] = wrtag_y;
+        write_index_y[`L1D_SET_IDX_WIDTH+`L1D_WAY_WIDTH-1 -: `L1D_SET_IDX_WIDTH] = index_y;
+        <%
+          GenInversedMux("wrtag_y",
+                  "dec_wrway_y[__WAY]",
+                  "ictag_ary[write_index_y + __WAY]",
+                  CONFIG_L1D_ASSOCIATIVITY);
+        %>
+	   end
      end
 
    // TBD: Need to model rd-wr contention
@@ -466,25 +511,25 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
 //
 //   always @ (negedge clk)
 //     begin
-//        if (wrreq_y & ~se)
-//          begin
+//	      if (wrreq_y & ~se)
+//	        begin
 //             if (rdreq_y) begin // rd/wr contention
 //               case (dec_wrway_y)
-//                 4'b0001 : w0[index_y[6:0]] ={30{1'bx}};
-//                 4'b0010 : w1[index_y[6:0]] ={30{1'bx}};
-//                 4'b0100 : w2[index_y[6:0]] ={30{1'bx}};
-//                 4'b1000 : w3[index_y[6:0]] ={30{1'bx}};
+//                 4'b0001 : w0[index_y[`L1D_SET_IDX_MASK]] ={30{1'bx}};
+//                 4'b0010 : w1[index_y[`L1D_SET_IDX_MASK]] ={30{1'bx}};
+//                 4'b0100 : w2[index_y[`L1D_SET_IDX_MASK]] ={30{1'bx}};
+//                 4'b1000 : w3[index_y[`L1D_SET_IDX_MASK]] ={30{1'bx}};
 //               endcase // case(wrway_y)
 //             end
 //             else begin
 //               case (dec_wrway_y)
-//                 4'b0001 : w0[index_y[6:0]] = wrtag_w0_y[29:0];
-//                 4'b0010 : w1[index_y[6:0]] = wrtag_w1_y[29:0];
-//                 4'b0100 : w2[index_y[6:0]] = wrtag_w2_y[29:0];
-//                 4'b1000 : w3[index_y[6:0]] = wrtag_w3_y[29:0];
+//                 4'b0001 : w0[index_y[`L1D_SET_IDX_MASK]] = wrtag_w0_y[29:0];
+//                 4'b0010 : w1[index_y[`L1D_SET_IDX_MASK]] = wrtag_w1_y[29:0];
+//                 4'b0100 : w2[index_y[`L1D_SET_IDX_MASK]] = wrtag_w2_y[29:0];
+//                 4'b1000 : w3[index_y[`L1D_SET_IDX_MASK]] = wrtag_w3_y[29:0];
 //               endcase // case(wrway_y)
 //             end
-//          end
+//	        end
 //     end
 
    // synopsys translate_on
@@ -496,11 +541,19 @@ endmodule // bw_r_dct
 `endif // checker model
 
 `ifdef IBM_SRAM_CACHE_TAG
-module bw_r_dct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
+module bw_r_dct(
+  // rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, 
+  rdtag_y, 
+  // rdtag_w3_y, 
+  so, rclk, se,
   si, reset_l, sehold, rst_tri_en, index0_x, index1_x, index_sel_x,
-  dec_wrway_x, rdreq_x, wrreq_x, wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
-  wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
-  wrtag_w3_x, adj,
+  dec_wrway_x, rdreq_x, wrreq_x, 
+
+  wrtag_x, wrtag_y,
+  // wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
+  // wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
+  // wrtag_w3_x, 
+  adj,
 
   // sram wrapper interface
   sramid,
@@ -515,21 +568,24 @@ module bw_r_dct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
   input     reset_l;
   input     sehold;
   input     rst_tri_en;
-  input [6:0]   index0_x;
-  input [6:0]   index1_x;
+  input [`L1D_SET_IDX_MASK]   index0_x;
+  input [`L1D_SET_IDX_MASK]   index1_x;
   input     index_sel_x;
-  input [3:0]   dec_wrway_x;
+  input [`L1D_WAY_COUNT-1:0]   dec_wrway_x;
   input     rdreq_x;
   input     wrreq_x;
-  input [32:0]    wrtag_w0_x;
-  input [32:0]    wrtag_w1_x;
-  input [32:0]    wrtag_w2_x;
-  input [32:0]    wrtag_w3_x;
-  input [32:0]    wrtag_w0_y;
-  input [32:0]    wrtag_w1_y;
-  input [32:0]    wrtag_w2_y;
-  input [32:0]    wrtag_w3_y;
-  input [3:0]   adj;
+
+  input [32:0]    wrtag_y;
+  input [32:0]    wrtag_x;
+  // input [32:0]    wrtag_w0_x;
+  // input [32:0]    wrtag_w1_x;
+  // input [32:0]    wrtag_w2_x;
+  // input [32:0]    wrtag_w3_x;
+  // input [32:0]    wrtag_w0_y;
+  // input [32:0]    wrtag_w1_y;
+  // input [32:0]    wrtag_w2_y;
+  // input [32:0]    wrtag_w3_y;
+  input [`L1D_WAY_COUNT-1:0]   adj;
 
 
   // sram wrapper interface
@@ -538,16 +594,17 @@ module bw_r_dct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
   input  [`SRAM_WRAPPER_BUS_WIDTH-1:0] rtap_srams_bist_data;
   input  [`BIST_ID_WIDTH-1:0] sramid;
 
-  output  [32:0]    rdtag_w0_y;
-  output  [32:0]    rdtag_w1_y;
-  output  [32:0]    rdtag_w2_y;
-  output  [32:0]    rdtag_w3_y;
+  // output  [32:0]    rdtag_w0_y;
+  // output  [32:0]    rdtag_w1_y;
+  // output  [32:0]    rdtag_w2_y;
+  // output  [32:0]    rdtag_w3_y;
+  output  [`L1D_TAG_ARRAY_REAL_WIDTH-1:0]    rdtag_y;
   output      so;
 
   wire      clk;
-  wire  [6:0]   index_x;
-  reg   [6:0]   index_y;
-  wire  [3:0]   we;
+  wire  [`L1D_SET_IDX_MASK]   index_x;
+  reg   [`L1D_SET_IDX_MASK]   index_y;
+  wire  [`L1D_WAY_COUNT-1:0]   we;
   reg           wrreq_y;
   reg           rdreq_y;
 
@@ -555,10 +612,20 @@ module bw_r_dct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
 
   assign clk = rclk;
   assign index_x = (index_sel_x ? index1_x : index0_x);
-  assign we = ({4 {((wrreq_x & reset_l) & (~rst_tri_en))}} & dec_wrway_x);
+  assign we = ({`L1D_WAY_COUNT {((wrreq_x & reset_l) & (~rst_tri_en))}} & dec_wrway_x);
 
-  wire [131:0] write_bus_x = {wrtag_w3_x,wrtag_w2_x,wrtag_w1_x,wrtag_w0_x};
-  wire [131:0] write_bus_mask_x = {{33{we[3]}}, {33{we[2]}}, {33{we[1]}}, {33{we[0]}}};
+  // wire [131:0] write_bus_x = {wrtag_x,wrtag_x,wrtag_x,wrtag_x};
+  // wire [131:0] write_bus_mask_x = {{33{we[3]}}, {33{we[2]}}, {33{we[1]}}, {33{we[0]}}};
+
+  wire [`L1D_TAG_REAL_WIDTH*`L1D_WAY_COUNT-1:0] write_bus_x = {`L1D_WAY_COUNT{wrtag_x}};
+  wire [`L1D_TAG_REAL_WIDTH*`L1D_WAY_COUNT-1:0] write_bus_mask_x;
+  <%
+    template = '''
+      assign write_bus_mask_x[`L1D_TAG_REAL_ARRAY_WAY__WAY_MASK] = {`L1D_TAG_REAL_WIDTH{we[__WAY]}};
+    '''
+    GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+  %>
+
 
   always @ (posedge rclk)
   begin
@@ -569,10 +636,11 @@ module bw_r_dct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
 
 `ifdef IBM_SRAM_CACHE_TAG_MODEL
 reg [131:0] cache [127:0];
-  reg  [32:0]    rdtag_w0_y;
-  reg  [32:0]    rdtag_w1_y;
-  reg  [32:0]    rdtag_w2_y;
-  reg  [32:0]    rdtag_w3_y;
+  // reg  [32:0]    rdtag_w0_y;
+  // reg  [32:0]    rdtag_w1_y;
+  // reg  [32:0]    rdtag_w2_y;
+  // reg  [32:0]    rdtag_w3_y;
+  reg [`L1D_TAG_ARRAY_REAL_WIDTH-1:0]    rdtag_y;
 
    // integer i;
    // initial
@@ -591,19 +659,20 @@ begin
     else
     begin
         if (rdreq_x)
-            {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y} <= cache[index_x];
+            rdtag_y <= cache[index_x];
         else
-            {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y} <= {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y};
+            rdtag_y <= rdtag_y;
             // {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y} <= 132'b0;
     end
 end
 
 `else
 // real SRAM instance
-  wire  [32:0]    rdtag_w0_y;
-  wire  [32:0]    rdtag_w1_y;
-  wire  [32:0]    rdtag_w2_y;
-  wire  [32:0]    rdtag_w3_y;
+  // wire  [32:0]    rdtag_w0_y;
+  // wire  [32:0]    rdtag_w1_y;
+  // wire  [32:0]    rdtag_w2_y;
+  // wire  [32:0]    rdtag_w3_y;
+  wire  [`L1D_TAG_ARRAY_REAL_WIDTH-1:0]    rdtag_y;
 
 sram_l1d_tag cache
 (
@@ -614,7 +683,7 @@ sram_l1d_tag cache
   .DIN(write_bus_x),
   .BW(write_bus_mask_x),
   .RDWEN(~wrreq_x),
-  .DOUT({rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y}),
+  .DOUT(rdtag_y),
 
   // .BIST_COMMAND(rtap_srams_bist_command),
   // .BIST_DIN(rtap_srams_bist_data),
@@ -627,6 +696,8 @@ sram_l1d_tag cache
 );
 `endif
 
+  // assign rdtag_y = {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y};
+
 
 `ifdef IBM_SRAM_CACHE_TAG_MODEL_CHECKER
 
@@ -634,6 +705,7 @@ sram_l1d_tag cache
    wire [32:0] rdtag_w1_y_ref;
    wire [32:0] rdtag_w2_y_ref;
    wire [32:0] rdtag_w3_y_ref;
+   used?
 
    wire [131:0] dout = {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y};
    wire [131:0] dout_ref = {rdtag_w3_y_ref, rdtag_w2_y_ref, rdtag_w1_y_ref, rdtag_w0_y_ref};
@@ -645,14 +717,14 @@ sram_l1d_tag cache
       .dec_wrway_x(dec_wrway_x),
       .rdreq_x(rdreq_x),
       .wrreq_x(wrreq_x),
-      .wrtag_w0_y(wrtag_w0_y),
-      .wrtag_w1_y(wrtag_w1_y),
-      .wrtag_w2_y(wrtag_w2_y),
-      .wrtag_w3_y(wrtag_w3_y),
-      .wrtag_w0_x(wrtag_w0_x),
-      .wrtag_w1_x(wrtag_w1_x),
-      .wrtag_w2_x(wrtag_w2_x),
-      .wrtag_w3_x(wrtag_w3_x),
+      // .wrtag_w0_y(wrtag_w0_y),
+      // .wrtag_w1_y(wrtag_w1_y),
+      // .wrtag_w2_y(wrtag_w2_y),
+      // .wrtag_w3_y(wrtag_w3_y),
+      // .wrtag_w0_x(wrtag_w0_x),
+      // .wrtag_w1_x(wrtag_w1_x),
+      // .wrtag_w2_x(wrtag_w2_x),
+      // .wrtag_w3_x(wrtag_w3_x),
       .adj(adj),
       .rdtag_w0_y(rdtag_w0_y_ref),
       .rdtag_w1_y(rdtag_w1_y_ref),

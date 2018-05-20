@@ -19,6 +19,15 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // 
 // ========== Copyright Header End ============================================
+
+
+<%
+   import math
+   import pyhplib
+   from pyhplib import *
+%>
+
+
 ////////////////////////////////////////////////////////////////////////
 /*
 //	Description:	LSU Data Cache Data Path
@@ -41,8 +50,10 @@ module lsu_dcdp ( /*AUTOARG*/
    lsu_exu_dfill_data_w2, lsu_ffu_ld_data, stb_rdata_ramc_buf, 
    // Inputs
    rclk, si, se, rst_tri_en, dcache_rdata_wb, dcache_rparity_wb, 
-   dcache_rdata_msb_w0_m, dcache_rdata_msb_w1_m, 
-   dcache_rdata_msb_w2_m, dcache_rdata_msb_w3_m, lsu_bist_rsel_way_e, 
+   // dcache_rdata_msb_w0_m, dcache_rdata_msb_w1_m, 
+   // dcache_rdata_msb_w2_m, dcache_rdata_msb_w3_m, 
+   dcache_rdata_msb_m,
+   lsu_bist_rsel_way_e, 
    dcache_alt_mx_sel_e, cache_way_hit_buf2, morphed_addr_m, 
    signed_ldst_byte_m, signed_ldst_hw_m, signed_ldst_w_m, 
    merge7_sel_byte0_m, merge7_sel_byte7_m, merge6_sel_byte1_m, 
@@ -82,15 +93,23 @@ output [63:0]		lsu_ffu_ld_data ;	      // ld data to frf
 //=========================================
 //dc_fill CP
 //=========================================
-   input [7:0]           dcache_rdata_msb_w0_m;    //from D$
-   input [7:0]           dcache_rdata_msb_w1_m;    //from D$
-   input [7:0]           dcache_rdata_msb_w2_m;    //from D$
-   input [7:0]           dcache_rdata_msb_w3_m;    //from D$
+   // input [7:0]           dcache_rdata_msb_w0_m;    //from D$
+   // input [7:0]           dcache_rdata_msb_w1_m;    //from D$
+   // input [7:0]           dcache_rdata_msb_w2_m;    //from D$
+   // input [7:0]           dcache_rdata_msb_w3_m;    //from D$
+   input [`L1D_WAY_COUNT*8-1:0]           dcache_rdata_msb_m;    //from D$
+<%
+  template = '''
+    wire [7:0]           dcache_rdata_msb_w__WAY_m = dcache_rdata_msb_m[((__WAY+1)*8)-1 -: 8];
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
 
-   input [3:0]           lsu_bist_rsel_way_e;     //from qdp2
+
+   input [`L1D_WAY_COUNT-1:0]           lsu_bist_rsel_way_e;     //from qdp2
 
    input                 dcache_alt_mx_sel_e;
-   input [3:0]           cache_way_hit_buf2;    //from dtlb
+   input [`L1D_WAY_COUNT-1:0]           cache_way_hit_buf2;    //from dtlb
    
    input [7:0]           morphed_addr_m;  //from dctl
 
@@ -144,7 +163,7 @@ input			             merge1_sel_byte_1h_m, merge1_sel_byte_2h_m ;
    output [14:9]       stb_rdata_ramc_buf;
    
 //wire   [3:1]           lsu_byp_byte_zero_extend ; // zero-extend for bypass bytes 7-1
-wire   [7:1]           lsu_byp_byte_sign_extend ; // sign-extend by 1 for byp bytes 7-1
+reg   [7:1]           lsu_byp_byte_sign_extend ; // sign-extend by 1 for byp bytes 7-1
    
 wire	[7:0]		byte0,byte1,byte2,byte3;
 wire	[7:0]		byte4,byte5,byte6,byte7;
@@ -565,50 +584,68 @@ assign align_byte[63:56] =
 //====================================================
 //dc_fill CP sign/zero control signals
 //====================================================
-   wire [7:0] ld_data_msb_w0_m;
-   wire [7:0] ld_data_msb_w1_m;
-   wire [7:0] ld_data_msb_w2_m;
-   wire [7:0] ld_data_msb_w3_m;
+   // wire [7:0] ld_data_msb_w0_m;
+   // wire [7:0] ld_data_msb_w1_m;
+   // wire [7:0] ld_data_msb_w2_m;
+   // wire [7:0] ld_data_msb_w3_m;
 
-   wire [7:0] ld_data_msb_w0_g;
-   wire [7:0] ld_data_msb_w1_g;
-   wire [7:0] ld_data_msb_w2_g;
-   wire [7:0] ld_data_msb_w3_g;
+   // wire [7:0] ld_data_msb_w0_g;
+   // wire [7:0] ld_data_msb_w1_g;
+   // wire [7:0] ld_data_msb_w2_g;
+   // wire [7:0] ld_data_msb_w3_g;
    
-assign ld_data_msb_w0_m[7:0] = dcache_rdata_msb_w0_m[7:0];
-assign ld_data_msb_w1_m[7:0] = dcache_rdata_msb_w1_m[7:0];
-assign ld_data_msb_w2_m[7:0] = dcache_rdata_msb_w2_m[7:0];
-assign ld_data_msb_w3_m[7:0] = dcache_rdata_msb_w3_m[7:0];
+// assign ld_data_msb_w0_m[7:0] = dcache_rdata_msb_w0_m[7:0];
+// assign ld_data_msb_w1_m[7:0] = dcache_rdata_msb_w1_m[7:0];
+// assign ld_data_msb_w2_m[7:0] = dcache_rdata_msb_w2_m[7:0];
+// assign ld_data_msb_w3_m[7:0] = dcache_rdata_msb_w3_m[7:0];
+<%
+  template = '''
+    wire [7:0] ld_data_msb_w__WAY_m;
+    reg [7:0] ld_data_msb_w__WAY_g;
+    assign ld_data_msb_w__WAY_m[7:0] = dcache_rdata_msb_w__WAY_m[7:0];
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
    
-dff_s #(32) ld_data_msb_stgg (
-        .din    ({ld_data_msb_w0_m[7:0], ld_data_msb_w1_m[7:0], ld_data_msb_w2_m[7:0], ld_data_msb_w3_m[7:0]}),
-        .q      ({ld_data_msb_w0_g[7:0], ld_data_msb_w1_g[7:0], ld_data_msb_w2_g[7:0], ld_data_msb_w3_g[7:0]}),
-        .clk    (clk),
-        .se     (se),       .si (),          .so ()
-        );
+// dff_s #(32) ld_data_msb_stgg (
+//         .din    ({ld_data_msb_w0_m[7:0], ld_data_msb_w1_m[7:0], ld_data_msb_w2_m[7:0], ld_data_msb_w3_m[7:0]}),
+//         .q      ({ld_data_msb_w0_g[7:0], ld_data_msb_w1_g[7:0], ld_data_msb_w2_g[7:0], ld_data_msb_w3_g[7:0]}),
+//         .clk    (clk),
+//         .se     (se),       .si (),          .so ()
+//         );
 
-   wire [3:0] dcache_alt_rsel_way_m;
+always @ (posedge clk)
+begin
+<%
+  template = '''
+    ld_data_msb_w__WAY_g[7:0] <= ld_data_msb_w__WAY_m[7:0];
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
+end
+
+   wire [`L1D_WAY_COUNT-1:0] dcache_alt_rsel_way_m;
    wire       dcache_alt_mx_sel_m;
    
-dff_s #(5) dcache_alt_stgm  (
-        .din    ({lsu_bist_rsel_way_e[3:0],  dcache_alt_mx_sel_e}),
-        .q      ({dcache_alt_rsel_way_m[3:0], dcache_alt_mx_sel_m}),
+dff_s #(`L1D_WAY_COUNT+1) dcache_alt_stgm  (
+        .din    ({lsu_bist_rsel_way_e[`L1D_WAY_COUNT-1:0],  dcache_alt_mx_sel_e}),
+        .q      ({dcache_alt_rsel_way_m[`L1D_WAY_COUNT-1:0], dcache_alt_mx_sel_m}),
         .clk    (clk),
         .se     (se),       .si (),          .so ()
         );
 
-   wire [3:0] dcache_alt_rsel_way_g;
+   wire [`L1D_WAY_COUNT-1:0] dcache_alt_rsel_way_g;
    wire       dcache_alt_mx_sel_g;
    
-dff_s #(5) dcache_alt_stgg  (
-        .din    ({dcache_alt_rsel_way_m[3:0],  dcache_alt_mx_sel_m}),
-        .q      ({dcache_alt_rsel_way_g[3:0],  dcache_alt_mx_sel_g}),
+dff_s #(`L1D_WAY_COUNT+1) dcache_alt_stgg  (
+        .din    ({dcache_alt_rsel_way_m[`L1D_WAY_COUNT-1:0],  dcache_alt_mx_sel_m}),
+        .q      ({dcache_alt_rsel_way_g[`L1D_WAY_COUNT-1:0],  dcache_alt_mx_sel_g}),
         .clk    (clk),
         .se     (se),       .si (),          .so ()
         );
-   wire [3:0] cache_way_mx_sel;
+   wire [`L1D_WAY_COUNT-1:0] cache_way_mx_sel;
    
-   assign     cache_way_mx_sel [3:0] = dcache_alt_mx_sel_g ? dcache_alt_rsel_way_g[3:0] : cache_way_hit_buf2[3:0];
+   assign     cache_way_mx_sel [`L1D_WAY_COUNT-1:0] = dcache_alt_mx_sel_g ? dcache_alt_rsel_way_g[`L1D_WAY_COUNT-1:0] : cache_way_hit_buf2[`L1D_WAY_COUNT-1:0];
 
 //   wire [7:0] align_bytes_msb;
    
@@ -644,47 +681,62 @@ dff_s #(8) stgg_morphadd(
         .se     (se),       .si (),          .so ()
         );
 
-   wire       sign_bit_w0_g, sign_bit_w1_g, sign_bit_w2_g, sign_bit_w3_g;
+   // wire       sign_bit_w0_g, sign_bit_w1_g, sign_bit_w2_g, sign_bit_w3_g;
 
-assign  sign_bit_w0_g =
-  (morphed_addr_g[0] & ld_data_msb_w0_g[7]) |
-  (morphed_addr_g[1] & ld_data_msb_w0_g[6]) |
-  (morphed_addr_g[2] & ld_data_msb_w0_g[5]) |
-  (morphed_addr_g[3] & ld_data_msb_w0_g[4]) |
-  (morphed_addr_g[4] & ld_data_msb_w0_g[3]) |
-  (morphed_addr_g[5] & ld_data_msb_w0_g[2]) |
-  (morphed_addr_g[6] & ld_data_msb_w0_g[1]) |
-  (morphed_addr_g[7] & ld_data_msb_w0_g[0]) ;
+// assign  sign_bit_w0_g =
+//   (morphed_addr_g[0] & ld_data_msb_w0_g[7]) |
+//   (morphed_addr_g[1] & ld_data_msb_w0_g[6]) |
+//   (morphed_addr_g[2] & ld_data_msb_w0_g[5]) |
+//   (morphed_addr_g[3] & ld_data_msb_w0_g[4]) |
+//   (morphed_addr_g[4] & ld_data_msb_w0_g[3]) |
+//   (morphed_addr_g[5] & ld_data_msb_w0_g[2]) |
+//   (morphed_addr_g[6] & ld_data_msb_w0_g[1]) |
+//   (morphed_addr_g[7] & ld_data_msb_w0_g[0]) ;
 
-assign  sign_bit_w1_g =
-  (morphed_addr_g[0] & ld_data_msb_w1_g[7]) |
-  (morphed_addr_g[1] & ld_data_msb_w1_g[6]) |
-  (morphed_addr_g[2] & ld_data_msb_w1_g[5]) |
-  (morphed_addr_g[3] & ld_data_msb_w1_g[4]) |
-  (morphed_addr_g[4] & ld_data_msb_w1_g[3]) |
-  (morphed_addr_g[5] & ld_data_msb_w1_g[2]) |
-  (morphed_addr_g[6] & ld_data_msb_w1_g[1]) |
-  (morphed_addr_g[7] & ld_data_msb_w1_g[0]) ;
+// assign  sign_bit_w1_g =
+//   (morphed_addr_g[0] & ld_data_msb_w1_g[7]) |
+//   (morphed_addr_g[1] & ld_data_msb_w1_g[6]) |
+//   (morphed_addr_g[2] & ld_data_msb_w1_g[5]) |
+//   (morphed_addr_g[3] & ld_data_msb_w1_g[4]) |
+//   (morphed_addr_g[4] & ld_data_msb_w1_g[3]) |
+//   (morphed_addr_g[5] & ld_data_msb_w1_g[2]) |
+//   (morphed_addr_g[6] & ld_data_msb_w1_g[1]) |
+//   (morphed_addr_g[7] & ld_data_msb_w1_g[0]) ;
 
-assign  sign_bit_w2_g =
-  (morphed_addr_g[0] & ld_data_msb_w2_g[7]) |
-  (morphed_addr_g[1] & ld_data_msb_w2_g[6]) |
-  (morphed_addr_g[2] & ld_data_msb_w2_g[5]) |
-  (morphed_addr_g[3] & ld_data_msb_w2_g[4]) |
-  (morphed_addr_g[4] & ld_data_msb_w2_g[3]) |
-  (morphed_addr_g[5] & ld_data_msb_w2_g[2]) |
-  (morphed_addr_g[6] & ld_data_msb_w2_g[1]) |
-  (morphed_addr_g[7] & ld_data_msb_w2_g[0]) ;
+// assign  sign_bit_w2_g =
+//   (morphed_addr_g[0] & ld_data_msb_w2_g[7]) |
+//   (morphed_addr_g[1] & ld_data_msb_w2_g[6]) |
+//   (morphed_addr_g[2] & ld_data_msb_w2_g[5]) |
+//   (morphed_addr_g[3] & ld_data_msb_w2_g[4]) |
+//   (morphed_addr_g[4] & ld_data_msb_w2_g[3]) |
+//   (morphed_addr_g[5] & ld_data_msb_w2_g[2]) |
+//   (morphed_addr_g[6] & ld_data_msb_w2_g[1]) |
+//   (morphed_addr_g[7] & ld_data_msb_w2_g[0]) ;
 
-assign  sign_bit_w3_g =
-  (morphed_addr_g[0] & ld_data_msb_w3_g[7]) |
-  (morphed_addr_g[1] & ld_data_msb_w3_g[6]) |
-  (morphed_addr_g[2] & ld_data_msb_w3_g[5]) |
-  (morphed_addr_g[3] & ld_data_msb_w3_g[4]) |
-  (morphed_addr_g[4] & ld_data_msb_w3_g[3]) |
-  (morphed_addr_g[5] & ld_data_msb_w3_g[2]) |
-  (morphed_addr_g[6] & ld_data_msb_w3_g[1]) |
-  (morphed_addr_g[7] & ld_data_msb_w3_g[0]) ;
+// assign  sign_bit_w3_g =
+//   (morphed_addr_g[0] & ld_data_msb_w3_g[7]) |
+//   (morphed_addr_g[1] & ld_data_msb_w3_g[6]) |
+//   (morphed_addr_g[2] & ld_data_msb_w3_g[5]) |
+//   (morphed_addr_g[3] & ld_data_msb_w3_g[4]) |
+//   (morphed_addr_g[4] & ld_data_msb_w3_g[3]) |
+//   (morphed_addr_g[5] & ld_data_msb_w3_g[2]) |
+//   (morphed_addr_g[6] & ld_data_msb_w3_g[1]) |
+//   (morphed_addr_g[7] & ld_data_msb_w3_g[0]) ;
+
+<%
+  template = '''
+    wire  sign_bit_w__WAY_g =
+      (morphed_addr_g[0] & ld_data_msb_w__WAY_g[7]) |
+      (morphed_addr_g[1] & ld_data_msb_w__WAY_g[6]) |
+      (morphed_addr_g[2] & ld_data_msb_w__WAY_g[5]) |
+      (morphed_addr_g[3] & ld_data_msb_w__WAY_g[4]) |
+      (morphed_addr_g[4] & ld_data_msb_w__WAY_g[3]) |
+      (morphed_addr_g[5] & ld_data_msb_w__WAY_g[2]) |
+      (morphed_addr_g[6] & ld_data_msb_w__WAY_g[1]) |
+      (morphed_addr_g[7] & ld_data_msb_w__WAY_g[0]) ;
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
    
 //assign  sign_bit_g =
 //  (morphed_addr_g[0] & align_bytes_msb[7]) |
@@ -704,171 +756,141 @@ assign  sign_bit_w3_g =
 //        .se     (se),       .si (),          .so ()
 //        );
    
-// byte0 never requires sign or zero extension.
-//w0
-//   wire [3:1] lsu_byp_byte_zero_extend_w0;
-   wire [7:1] lsu_byp_byte_sign_extend_w0;
+//    wire [7:1] lsu_byp_byte_sign_extend_w0;
+// assign  lsu_byp_byte_sign_extend_w0[1] =
+//         signed_ldst_byte_g & sign_bit_w0_g;
+// assign  lsu_byp_byte_sign_extend_w0[2] =
+//         signed_ldst_hw_g & sign_bit_w0_g;
+// assign  lsu_byp_byte_sign_extend_w0[3] =
+//         lsu_byp_byte_sign_extend_w0[2] ;
+// assign  lsu_byp_byte_sign_extend_w0[4] =
+//         signed_ldst_w_g & sign_bit_w0_g;
+// assign  lsu_byp_byte_sign_extend_w0[5] =
+//     lsu_byp_byte_sign_extend_w0[4] ;
+// assign  lsu_byp_byte_sign_extend_w0[6] =
+//     lsu_byp_byte_sign_extend_w0[4] ;
+// assign  lsu_byp_byte_sign_extend_w0[7] =
+//     lsu_byp_byte_sign_extend_w0[4] ;
+
+//    wire [7:1] lsu_byp_byte_sign_extend_w1;
+// assign  lsu_byp_byte_sign_extend_w1[1] =
+//         signed_ldst_byte_g & sign_bit_w1_g;
+// assign  lsu_byp_byte_sign_extend_w1[2] =
+//         signed_ldst_hw_g & sign_bit_w1_g;
+// assign  lsu_byp_byte_sign_extend_w1[3] =
+//         lsu_byp_byte_sign_extend_w1[2] ;
+// assign  lsu_byp_byte_sign_extend_w1[4] =
+//         signed_ldst_w_g & sign_bit_w1_g;
+// assign  lsu_byp_byte_sign_extend_w1[5] =
+//     lsu_byp_byte_sign_extend_w1[4] ;
+// assign  lsu_byp_byte_sign_extend_w1[6] =
+//     lsu_byp_byte_sign_extend_w1[4] ;
+// assign  lsu_byp_byte_sign_extend_w1[7] =
+//     lsu_byp_byte_sign_extend_w1[4] ;
+
+// //w2
+// //   wire [3:1] lsu_byp_byte_zero_extend_w2;
+//    wire [7:1] lsu_byp_byte_sign_extend_w2;
    
-//assign  lsu_byp_byte_zero_extend_w0[1] =
-//        unsigned_ldst_byte_g | (signed_ldst_byte_g & ~sign_bit_w0_g);
+// //assign  lsu_byp_byte_zero_extend_w2[1] =
+// //        unsigned_ldst_byte_g | (signed_ldst_byte_g & ~sign_bit_w2_g);
    
-assign  lsu_byp_byte_sign_extend_w0[1] =
-        signed_ldst_byte_g & sign_bit_w0_g;
+// assign  lsu_byp_byte_sign_extend_w2[1] =
+//         signed_ldst_byte_g & sign_bit_w2_g;
  
-//assign  lsu_byp_byte_zero_extend_w0[2] =
-//        unsigned_ldst_hw_g | (signed_ldst_hw_g & ~sign_bit_w0_g);
+// //assign  lsu_byp_byte_zero_extend_w2[2] =
+// //        unsigned_ldst_hw_g | (signed_ldst_hw_g & ~sign_bit_w2_g);
 
-assign  lsu_byp_byte_sign_extend_w0[2] =
-        signed_ldst_hw_g & sign_bit_w0_g;
+// assign  lsu_byp_byte_sign_extend_w2[2] =
+//         signed_ldst_hw_g & sign_bit_w2_g;
    
-//assign  lsu_byp_byte_zero_extend_w0[3] =
-//        lsu_byp_byte_zero_extend_w0[2] ;
+// //assign  lsu_byp_byte_zero_extend_w2[3] =
+// //        lsu_byp_byte_zero_extend_w2[2] ;
 
-assign  lsu_byp_byte_sign_extend_w0[3] =
-        lsu_byp_byte_sign_extend_w0[2] ;
+// assign  lsu_byp_byte_sign_extend_w2[3] =
+//         lsu_byp_byte_sign_extend_w2[2] ;
 
-//assign  lsu_byp_byte_zero_extend_w0[4] =
-//        unsigned_ldst_w_g | (signed_ldst_w_g & ~sign_bit_w0_g);
+// //assign  lsu_byp_byte_zero_extend_w2[4] =
+// //        unsigned_ldst_w_g | (signed_ldst_w_g & ~sign_bit_w2_g);
    
-assign  lsu_byp_byte_sign_extend_w0[4] =
-        signed_ldst_w_g & sign_bit_w0_g;
+// assign  lsu_byp_byte_sign_extend_w2[4] =
+//         signed_ldst_w_g & sign_bit_w2_g;
         
-//assign  lsu_byp_byte_zero_extend_w0[5] =
-//    lsu_byp_byte_zero_extend_w0[4] ;
-assign  lsu_byp_byte_sign_extend_w0[5] =
-    lsu_byp_byte_sign_extend_w0[4] ;
-//assign  lsu_byp_byte_zero_extend_w0[6] =
-//    lsu_byp_byte_zero_extend_w0[4] ;
-assign  lsu_byp_byte_sign_extend_w0[6] =
-    lsu_byp_byte_sign_extend_w0[4] ;
-//assign  lsu_byp_byte_zero_extend_w0[7] =
-//    lsu_byp_byte_zero_extend_w0[4] ;
-assign  lsu_byp_byte_sign_extend_w0[7] =
-    lsu_byp_byte_sign_extend_w0[4] ;
+// //assign  lsu_byp_byte_zero_extend_w2[5] =
+// //    lsu_byp_byte_zero_extend_w2[4] ;
+// assign  lsu_byp_byte_sign_extend_w2[5] =
+//     lsu_byp_byte_sign_extend_w2[4] ;
+// //assign  lsu_byp_byte_zero_extend_w2[6] =
+// //    lsu_byp_byte_zero_extend_w2[4] ;
+// assign  lsu_byp_byte_sign_extend_w2[6] =
+//     lsu_byp_byte_sign_extend_w2[4] ;
+// //assign  lsu_byp_byte_zero_extend_w2[7] =
+// //    lsu_byp_byte_zero_extend_w2[4] ;
+// assign  lsu_byp_byte_sign_extend_w2[7] =
+//     lsu_byp_byte_sign_extend_w2[4] ;
 
-//w1
-//   wire [3:1] lsu_byp_byte_zero_extend_w1;
-   wire [7:1] lsu_byp_byte_sign_extend_w1;
+// //w3
+// //   wire [3:1] lsu_byp_byte_zero_extend_w3;
+//    wire [7:1] lsu_byp_byte_sign_extend_w3;
    
-//assign  lsu_byp_byte_zero_extend_w1[1] =
-//        unsigned_ldst_byte_g | (signed_ldst_byte_g & ~sign_bit_w1_g);
+// //assign  lsu_byp_byte_zero_extend_w3[1] =
+// //        unsigned_ldst_byte_g | (signed_ldst_byte_g & ~sign_bit_w3_g);
    
-assign  lsu_byp_byte_sign_extend_w1[1] =
-        signed_ldst_byte_g & sign_bit_w1_g;
+// assign  lsu_byp_byte_sign_extend_w3[1] =
+//         signed_ldst_byte_g & sign_bit_w3_g;
  
-//assign  lsu_byp_byte_zero_extend_w1[2] =
-//        unsigned_ldst_hw_g | (signed_ldst_hw_g & ~sign_bit_w1_g);
+// //assign  lsu_byp_byte_zero_extend_w3[2] =
+// //        unsigned_ldst_hw_g | (signed_ldst_hw_g & ~sign_bit_w3_g);
 
-assign  lsu_byp_byte_sign_extend_w1[2] =
-        signed_ldst_hw_g & sign_bit_w1_g;
+// assign  lsu_byp_byte_sign_extend_w3[2] =
+//         signed_ldst_hw_g & sign_bit_w3_g;
    
-//assign  lsu_byp_byte_zero_extend_w1[3] =
-//        lsu_byp_byte_zero_extend_w1[2] ;
+// //assign  lsu_byp_byte_zero_extend_w3[3] =
+// //        lsu_byp_byte_zero_extend_w3[2] ;
 
-assign  lsu_byp_byte_sign_extend_w1[3] =
-        lsu_byp_byte_sign_extend_w1[2] ;
+// assign  lsu_byp_byte_sign_extend_w3[3] =
+//         lsu_byp_byte_sign_extend_w3[2] ;
 
-//assign  lsu_byp_byte_zero_extend_w1[4] =
-//        unsigned_ldst_w_g | (signed_ldst_w_g & ~sign_bit_w1_g);
+// //assign  lsu_byp_byte_zero_extend_w3[4] =
+// //        unsigned_ldst_w_g | (signed_ldst_w_g & ~sign_bit_w3_g);
    
-assign  lsu_byp_byte_sign_extend_w1[4] =
-        signed_ldst_w_g & sign_bit_w1_g;
+// assign  lsu_byp_byte_sign_extend_w3[4] =
+//         signed_ldst_w_g & sign_bit_w3_g;
         
-//assign  lsu_byp_byte_zero_extend_w1[5] =
-//    lsu_byp_byte_zero_extend_w1[4] ;
-assign  lsu_byp_byte_sign_extend_w1[5] =
-    lsu_byp_byte_sign_extend_w1[4] ;
-//assign  lsu_byp_byte_zero_extend_w1[6] =
-//    lsu_byp_byte_zero_extend_w1[4] ;
-assign  lsu_byp_byte_sign_extend_w1[6] =
-    lsu_byp_byte_sign_extend_w1[4] ;
-//assign  lsu_byp_byte_zero_extend_w1[7] =
-//    lsu_byp_byte_zero_extend_w1[4] ;
-assign  lsu_byp_byte_sign_extend_w1[7] =
-    lsu_byp_byte_sign_extend_w1[4] ;
+// //assign  lsu_byp_byte_zero_extend_w3[5] =
+// //    lsu_byp_byte_zero_extend_w3[4] ;
+// assign  lsu_byp_byte_sign_extend_w3[5] =
+//     lsu_byp_byte_sign_extend_w3[4] ;
+// //assign  lsu_byp_byte_zero_extend_w3[6] =
+// //    lsu_byp_byte_zero_extend_w3[4] ;
+// assign  lsu_byp_byte_sign_extend_w3[6] =
+//     lsu_byp_byte_sign_extend_w3[4] ;
+// //assign  lsu_byp_byte_zero_extend_w3[7] =
+// //    lsu_byp_byte_zero_extend_w3[4] ;
+// assign  lsu_byp_byte_sign_extend_w3[7] =
+//     lsu_byp_byte_sign_extend_w3[4] ;
 
-//w2
-//   wire [3:1] lsu_byp_byte_zero_extend_w2;
-   wire [7:1] lsu_byp_byte_sign_extend_w2;
-   
-//assign  lsu_byp_byte_zero_extend_w2[1] =
-//        unsigned_ldst_byte_g | (signed_ldst_byte_g & ~sign_bit_w2_g);
-   
-assign  lsu_byp_byte_sign_extend_w2[1] =
-        signed_ldst_byte_g & sign_bit_w2_g;
- 
-//assign  lsu_byp_byte_zero_extend_w2[2] =
-//        unsigned_ldst_hw_g | (signed_ldst_hw_g & ~sign_bit_w2_g);
 
-assign  lsu_byp_byte_sign_extend_w2[2] =
-        signed_ldst_hw_g & sign_bit_w2_g;
-   
-//assign  lsu_byp_byte_zero_extend_w2[3] =
-//        lsu_byp_byte_zero_extend_w2[2] ;
-
-assign  lsu_byp_byte_sign_extend_w2[3] =
-        lsu_byp_byte_sign_extend_w2[2] ;
-
-//assign  lsu_byp_byte_zero_extend_w2[4] =
-//        unsigned_ldst_w_g | (signed_ldst_w_g & ~sign_bit_w2_g);
-   
-assign  lsu_byp_byte_sign_extend_w2[4] =
-        signed_ldst_w_g & sign_bit_w2_g;
-        
-//assign  lsu_byp_byte_zero_extend_w2[5] =
-//    lsu_byp_byte_zero_extend_w2[4] ;
-assign  lsu_byp_byte_sign_extend_w2[5] =
-    lsu_byp_byte_sign_extend_w2[4] ;
-//assign  lsu_byp_byte_zero_extend_w2[6] =
-//    lsu_byp_byte_zero_extend_w2[4] ;
-assign  lsu_byp_byte_sign_extend_w2[6] =
-    lsu_byp_byte_sign_extend_w2[4] ;
-//assign  lsu_byp_byte_zero_extend_w2[7] =
-//    lsu_byp_byte_zero_extend_w2[4] ;
-assign  lsu_byp_byte_sign_extend_w2[7] =
-    lsu_byp_byte_sign_extend_w2[4] ;
-
-//w3
-//   wire [3:1] lsu_byp_byte_zero_extend_w3;
-   wire [7:1] lsu_byp_byte_sign_extend_w3;
-   
-//assign  lsu_byp_byte_zero_extend_w3[1] =
-//        unsigned_ldst_byte_g | (signed_ldst_byte_g & ~sign_bit_w3_g);
-   
-assign  lsu_byp_byte_sign_extend_w3[1] =
-        signed_ldst_byte_g & sign_bit_w3_g;
- 
-//assign  lsu_byp_byte_zero_extend_w3[2] =
-//        unsigned_ldst_hw_g | (signed_ldst_hw_g & ~sign_bit_w3_g);
-
-assign  lsu_byp_byte_sign_extend_w3[2] =
-        signed_ldst_hw_g & sign_bit_w3_g;
-   
-//assign  lsu_byp_byte_zero_extend_w3[3] =
-//        lsu_byp_byte_zero_extend_w3[2] ;
-
-assign  lsu_byp_byte_sign_extend_w3[3] =
-        lsu_byp_byte_sign_extend_w3[2] ;
-
-//assign  lsu_byp_byte_zero_extend_w3[4] =
-//        unsigned_ldst_w_g | (signed_ldst_w_g & ~sign_bit_w3_g);
-   
-assign  lsu_byp_byte_sign_extend_w3[4] =
-        signed_ldst_w_g & sign_bit_w3_g;
-        
-//assign  lsu_byp_byte_zero_extend_w3[5] =
-//    lsu_byp_byte_zero_extend_w3[4] ;
-assign  lsu_byp_byte_sign_extend_w3[5] =
-    lsu_byp_byte_sign_extend_w3[4] ;
-//assign  lsu_byp_byte_zero_extend_w3[6] =
-//    lsu_byp_byte_zero_extend_w3[4] ;
-assign  lsu_byp_byte_sign_extend_w3[6] =
-    lsu_byp_byte_sign_extend_w3[4] ;
-//assign  lsu_byp_byte_zero_extend_w3[7] =
-//    lsu_byp_byte_zero_extend_w3[4] ;
-assign  lsu_byp_byte_sign_extend_w3[7] =
-    lsu_byp_byte_sign_extend_w3[4] ;
-
+<%
+  template = '''
+    wire [7:1] lsu_byp_byte_sign_extend_w__WAY;
+    assign  lsu_byp_byte_sign_extend_w__WAY[1] =
+            signed_ldst_byte_g & sign_bit_w__WAY_g;
+    assign  lsu_byp_byte_sign_extend_w__WAY[2] =
+            signed_ldst_hw_g & sign_bit_w__WAY_g;
+    assign  lsu_byp_byte_sign_extend_w__WAY[3] =
+            lsu_byp_byte_sign_extend_w__WAY[2] ;
+    assign  lsu_byp_byte_sign_extend_w__WAY[4] =
+            signed_ldst_w_g & sign_bit_w__WAY_g;
+    assign  lsu_byp_byte_sign_extend_w__WAY[5] =
+            lsu_byp_byte_sign_extend_w__WAY[4] ;
+    assign  lsu_byp_byte_sign_extend_w__WAY[6] =
+            lsu_byp_byte_sign_extend_w__WAY[4] ;
+    assign  lsu_byp_byte_sign_extend_w__WAY[7] =
+            lsu_byp_byte_sign_extend_w__WAY[4] ;
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
 
 //mux4ds  #(14) zero_sign_sel_mux (
 //        .in0    ({lsu_byp_byte_zero_extend_w0[7:1],lsu_byp_byte_sign_extend_w0[7:1]}),
@@ -888,13 +910,25 @@ assign  lsu_byp_byte_sign_extend_w3[7] =
 //   (cache_way_mx_sel[2] ?  lsu_byp_byte_zero_extend_w2[3:1] : 3'b0 ) |   
 //   (cache_way_mx_sel[3] ?  lsu_byp_byte_zero_extend_w3[3:1] : 3'b0 ) ;
 
-assign lsu_byp_byte_sign_extend[7:1] = 
-   (cache_way_mx_sel[0] ?  lsu_byp_byte_sign_extend_w0[7:1] : 7'b0) |
-   (cache_way_mx_sel[1] ?  lsu_byp_byte_sign_extend_w1[7:1] : 7'b0) |
-   (cache_way_mx_sel[2] ?  lsu_byp_byte_sign_extend_w2[7:1] : 7'b0) |
-   (cache_way_mx_sel[3] ?  lsu_byp_byte_sign_extend_w3[7:1] : 7'b0) ;
-   
-     
+// assign lsu_byp_byte_sign_extend[7:1] = 
+//    (cache_way_mx_sel[0] ?  lsu_byp_byte_sign_extend_w0[7:1] : 7'b0) |
+//    (cache_way_mx_sel[1] ?  lsu_byp_byte_sign_extend_w1[7:1] : 7'b0) |
+//    (cache_way_mx_sel[2] ?  lsu_byp_byte_sign_extend_w2[7:1] : 7'b0) |
+//    (cache_way_mx_sel[3] ?  lsu_byp_byte_sign_extend_w3[7:1] : 7'b0) ;
+
+<%
+  inputs = '''
+    lsu_byp_byte_sign_extend_w__WAY[7:1]
+  '''
+  sels = '''
+    cache_way_mx_sel[__WAY]
+  '''
+  outputs = '''
+    lsu_byp_byte_sign_extend[7:1]
+  '''
+  num = CONFIG_L1D_ASSOCIATIVITY;
+  GenOr(inputs, sels, outputs, num);
+%>
 
 dff_s #(37) stgg_mergesel(
         .din    ({

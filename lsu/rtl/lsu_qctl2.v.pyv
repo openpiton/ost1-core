@@ -19,6 +19,13 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // 
 // ========== Copyright Header End ============================================
+
+<%
+   import math
+   import pyhplib
+   from pyhplib import *
+%>
+
 /////////////////////////////////////////////////////////////////////
 /*
 //  Description:  LSU Queue Control for Sparc Core  
@@ -34,7 +41,7 @@
                   // time scale definition
 `include  "iop.h" 
 
-`include "lsu.tmp.h" 
+`include  "lsu.tmp.h" 
 
 ////////////////////////////////////////////////////////////////////////
 // Local header file includes / local defines
@@ -71,29 +78,41 @@ module lsu_qctl2 ( /*AUTOARG*/
    cpx_spc_data_cx_b133, cpx_spc_data_cx_b130, cpx_spc_data_cx_b129, 
    cpx_spc_data_cx_b128, cpx_spc_data_cx_b125, 
    cpx_spc_data_cx_b124to123, cpx_spc_data_cx_b120to118, 
-   cpx_spc_data_cx_b71to70, cpx_spc_data_cx_b0, cpx_spc_data_cx_b4, 
-   cpx_spc_data_cx_b8, cpx_spc_data_cx_b12, cpx_spc_data_cx_b16, 
-   cpx_spc_data_cx_b20, cpx_spc_data_cx_b24, cpx_spc_data_cx_b28, 
-   cpx_spc_data_cx_b32, cpx_spc_data_cx_b35, cpx_spc_data_cx_b38, 
-   cpx_spc_data_cx_b41, cpx_spc_data_cx_b44, cpx_spc_data_cx_b47, 
-   cpx_spc_data_cx_b50, cpx_spc_data_cx_b53, cpx_spc_data_cx_b56, 
-   cpx_spc_data_cx_b60, cpx_spc_data_cx_b64, cpx_spc_data_cx_b68, 
-   cpx_spc_data_cx_b72, cpx_spc_data_cx_b76, cpx_spc_data_cx_b80, 
-   cpx_spc_data_cx_b84, cpx_spc_data_cx_b88, cpx_spc_data_cx_b91, 
-   cpx_spc_data_cx_b94, cpx_spc_data_cx_b97, cpx_spc_data_cx_b100, 
-   cpx_spc_data_cx_b103, cpx_spc_data_cx_b106, cpx_spc_data_cx_b109, 
-   cpx_spc_data_cx_b1, cpx_spc_data_cx_b5, cpx_spc_data_cx_b9, 
-   cpx_spc_data_cx_b13, cpx_spc_data_cx_b17, cpx_spc_data_cx_b21, 
-   cpx_spc_data_cx_b25, cpx_spc_data_cx_b29, cpx_spc_data_cx_b57, 
-   cpx_spc_data_cx_b61, cpx_spc_data_cx_b65, cpx_spc_data_cx_b69, 
-   cpx_spc_data_cx_b73, cpx_spc_data_cx_b77, cpx_spc_data_cx_b81, 
-   cpx_spc_data_cx_b85, ifu_lsu_rd_e, lmq_ld_rd1, lmq_ldd_vld, 
+
+   cpx_spc_data_cx_b71to70, 
+   // cpx_spc_data_cx_b0, cpx_spc_data_cx_b4, 
+   // cpx_spc_data_cx_b8, cpx_spc_data_cx_b12, cpx_spc_data_cx_b16, 
+   // cpx_spc_data_cx_b20, cpx_spc_data_cx_b24, cpx_spc_data_cx_b28, 
+   // cpx_spc_data_cx_b32, cpx_spc_data_cx_b35, cpx_spc_data_cx_b38, 
+   // cpx_spc_data_cx_b41, cpx_spc_data_cx_b44, cpx_spc_data_cx_b47, 
+   // cpx_spc_data_cx_b50, cpx_spc_data_cx_b53, cpx_spc_data_cx_b56, 
+   // cpx_spc_data_cx_b60, cpx_spc_data_cx_b64, cpx_spc_data_cx_b68, 
+   // cpx_spc_data_cx_b72, cpx_spc_data_cx_b76, cpx_spc_data_cx_b80, 
+   // cpx_spc_data_cx_b84, cpx_spc_data_cx_b88, cpx_spc_data_cx_b91, 
+   // cpx_spc_data_cx_b94, cpx_spc_data_cx_b97, cpx_spc_data_cx_b100, 
+   cpx_spc_data_cx_b103,
+   // cpx_spc_data_cx_b106, cpx_spc_data_cx_b109, 
+   // cpx_spc_data_cx_b1, cpx_spc_data_cx_b5, cpx_spc_data_cx_b9, 
+   // cpx_spc_data_cx_b13, cpx_spc_data_cx_b17, cpx_spc_data_cx_b21, 
+   // cpx_spc_data_cx_b25, cpx_spc_data_cx_b29, cpx_spc_data_cx_b57, 
+   // cpx_spc_data_cx_b61, cpx_spc_data_cx_b65, cpx_spc_data_cx_b69, 
+   // cpx_spc_data_cx_b73, cpx_spc_data_cx_b77, cpx_spc_data_cx_b81, 
+   // cpx_spc_data_cx_b85, 
+
+   cpx_spc_data_cx_dcache_inval_val,
+   cpx_spc_data_cx_icache_inval_val,
+
+   ifu_lsu_rd_e, lmq_ld_rd1, lmq_ldd_vld, 
    dfq_tid, const_cpuid, lmq_ld_addr_b3, ifu_lsu_ibuf_busy, 
    ifu_lsu_inv_clear, lsu_byp_misc_sz_e, lsu_dfq_byp_tid, 
    lsu_cpx_pkt_atm_st_cmplt, lsu_cpx_pkt_l2miss, lsu_cpx_pkt_tid, 
    lsu_cpx_pkt_invwy, lsu_dfq_byp_flush, lsu_dfq_byp_type, 
-   lsu_dfq_byp_invwy_vld, lsu_cpu_inv_data_b13to9, 
-   lsu_cpu_inv_data_b7to2, lsu_cpu_inv_data_b0, lsu_cpx_pkt_inv_pa, 
+   lsu_dfq_byp_invwy_vld, 
+   // lsu_cpu_inv_data_b13to9, 
+   // lsu_cpu_inv_data_b7to2, 
+   // lsu_cpu_inv_data_b0, 
+   lsu_cpu_inv_data_val, lsu_cpu_inv_data_way,
+   lsu_cpx_pkt_inv_pa, 
    lsu_cpx_pkt_ifill_type, lsu_cpx_pkt_atomic, lsu_cpx_pkt_binit_st, 
    lsu_cpx_pkt_prefetch, lsu_dfq_byp_binit_st, lsu_tlbop_force_swo, 
    lsu_iobrdge_tap_rq_type, lsu_dcache_tag_perror_g, 
@@ -143,59 +162,61 @@ input [`CPX_PERR_DINV+1:`CPX_PERR_DINV] cpx_spc_data_cx_b124to123 ;  // inv pack
 input [`CPX_INV_CID_HI:`CPX_INV_CID_LO] cpx_spc_data_cx_b120to118 ;  // inv packet cpu id
 input [1:0]             cpx_spc_data_cx_b71to70 ;  
 
-input        cpx_spc_data_cx_b0 ;
-input        cpx_spc_data_cx_b4 ;
-input        cpx_spc_data_cx_b8 ;
-input        cpx_spc_data_cx_b12 ;
-input        cpx_spc_data_cx_b16 ;
-input        cpx_spc_data_cx_b20 ;
-input        cpx_spc_data_cx_b24 ;
-input        cpx_spc_data_cx_b28 ;
+// input        cpx_spc_data_cx_b0 ;
+// input        cpx_spc_data_cx_b4 ;
+// input        cpx_spc_data_cx_b8 ;
+// input        cpx_spc_data_cx_b12 ;
+// input        cpx_spc_data_cx_b16 ;
+// input        cpx_spc_data_cx_b20 ;
+// input        cpx_spc_data_cx_b24 ;
+// input        cpx_spc_data_cx_b28 ;
 
-input        cpx_spc_data_cx_b32 ;
-input        cpx_spc_data_cx_b35 ;
-input        cpx_spc_data_cx_b38 ;
-input        cpx_spc_data_cx_b41 ;
-input        cpx_spc_data_cx_b44 ;
-input        cpx_spc_data_cx_b47 ;
-input        cpx_spc_data_cx_b50 ;
-input        cpx_spc_data_cx_b53 ;
+// input        cpx_spc_data_cx_b32 ;
+// input        cpx_spc_data_cx_b35 ;
+// input        cpx_spc_data_cx_b38 ;
+// input        cpx_spc_data_cx_b41 ;
+// input        cpx_spc_data_cx_b44 ;
+// input        cpx_spc_data_cx_b47 ;
+// input        cpx_spc_data_cx_b50 ;
+// input        cpx_spc_data_cx_b53 ;
 
-input        cpx_spc_data_cx_b56 ;
-input        cpx_spc_data_cx_b60 ;
-input        cpx_spc_data_cx_b64 ;
-input        cpx_spc_data_cx_b68 ;
-input        cpx_spc_data_cx_b72 ;
-input        cpx_spc_data_cx_b76 ;
-input        cpx_spc_data_cx_b80 ;
-input        cpx_spc_data_cx_b84 ;
+// input        cpx_spc_data_cx_b56 ;
+// input        cpx_spc_data_cx_b60 ;
+// input        cpx_spc_data_cx_b64 ;
+// input        cpx_spc_data_cx_b68 ;
+// input        cpx_spc_data_cx_b72 ;
+// input        cpx_spc_data_cx_b76 ;
+// input        cpx_spc_data_cx_b80 ;
+// input        cpx_spc_data_cx_b84 ;
 
-input        cpx_spc_data_cx_b88 ;
-input        cpx_spc_data_cx_b91 ;
-input        cpx_spc_data_cx_b94 ;
-input        cpx_spc_data_cx_b97 ;
-input        cpx_spc_data_cx_b100 ;
+// input        cpx_spc_data_cx_b88 ;
+// input        cpx_spc_data_cx_b91 ;
+// input        cpx_spc_data_cx_b94 ;
+// input        cpx_spc_data_cx_b97 ;
+// input        cpx_spc_data_cx_b100 ;
 input        cpx_spc_data_cx_b103 ;
-input        cpx_spc_data_cx_b106 ;
-input        cpx_spc_data_cx_b109 ;
+// input        cpx_spc_data_cx_b106 ;
+// input        cpx_spc_data_cx_b109 ;
 
-input        cpx_spc_data_cx_b1 ;
-input        cpx_spc_data_cx_b5 ;
-input        cpx_spc_data_cx_b9 ;
-input        cpx_spc_data_cx_b13 ;
-input        cpx_spc_data_cx_b17 ;
-input        cpx_spc_data_cx_b21 ;
-input        cpx_spc_data_cx_b25 ;
-input        cpx_spc_data_cx_b29 ;
+// input        cpx_spc_data_cx_b1 ;
+// input        cpx_spc_data_cx_b5 ;
+// input        cpx_spc_data_cx_b9 ;
+// input        cpx_spc_data_cx_b13 ;
+// input        cpx_spc_data_cx_b17 ;
+// input        cpx_spc_data_cx_b21 ;
+// input        cpx_spc_data_cx_b25 ;
+// input        cpx_spc_data_cx_b29 ;
 
-input        cpx_spc_data_cx_b57 ;
-input        cpx_spc_data_cx_b61 ;
-input        cpx_spc_data_cx_b65 ;
-input        cpx_spc_data_cx_b69 ;
-input        cpx_spc_data_cx_b73 ;
-input        cpx_spc_data_cx_b77 ;
-input        cpx_spc_data_cx_b81 ;
-input        cpx_spc_data_cx_b85 ;
+// input        cpx_spc_data_cx_b57 ;
+// input        cpx_spc_data_cx_b61 ;
+// input        cpx_spc_data_cx_b65 ;
+// input        cpx_spc_data_cx_b69 ;
+// input        cpx_spc_data_cx_b73 ;
+// input        cpx_spc_data_cx_b77 ;
+// input        cpx_spc_data_cx_b81 ;
+// input        cpx_spc_data_cx_b85 ;
+input       cpx_spc_data_cx_dcache_inval_val;
+input       cpx_spc_data_cx_icache_inval_val;
 
 input [4:0]             ifu_lsu_rd_e ;          // rd for current load request.
 //input                   lsu_ld_miss_g ;         // load misses in dcache.
@@ -229,16 +250,20 @@ input   [1:0]           lsu_dfq_byp_tid ;
 input                   lsu_cpx_pkt_atm_st_cmplt ;
 input                   lsu_cpx_pkt_l2miss ;
 input   [1:0]           lsu_cpx_pkt_tid ;
-input   [1:0]           lsu_cpx_pkt_invwy ;     // invalidate way
+input   [`L1D_WAY_MASK]           lsu_cpx_pkt_invwy ;     // invalidate way
 input                   lsu_dfq_byp_flush ;
 input   [5:0]           lsu_dfq_byp_type ;
 input                   lsu_dfq_byp_invwy_vld ;
 //input   [13:0]          lsu_cpu_inv_data ;
-input   [13:9]          lsu_cpu_inv_data_b13to9 ;
-input   [7:2]           lsu_cpu_inv_data_b7to2 ;
-input                   lsu_cpu_inv_data_b0 ;
+
+// input   [13:9]          lsu_cpu_inv_data_b13to9 ;
+// input   [7:2]           lsu_cpu_inv_data_b7to2 ;
+// input                   lsu_cpu_inv_data_b0 ;
+input                        lsu_cpu_inv_data_val ;
+input  [`L1D_WAY_WIDTH-1:0]  lsu_cpu_inv_data_way ;
+
 //input   [2:0]           lsu_dfq_byp_cpuid ;
-input   [4:0]           lsu_cpx_pkt_inv_pa ;    // invalidate pa [10:6]
+input   [`L1D_ADDRESS_HI-6:0]           lsu_cpx_pkt_inv_pa ;    // invalidate pa [10:6]
 input                   lsu_cpx_pkt_ifill_type ;
 //input                   stb_cam_hit ; REMOVED
 input                   lsu_cpx_pkt_atomic ;
@@ -350,7 +375,7 @@ output  [3:0]           lsu_dfq_flsh_cmplt ;
 output                  dfq_rptr_vld ;          // read pointer valid
 output  [4:0]           dfq_rptr ;              // encoded read pointer
 output                  lsu_ifu_stallreq ;      // cfq has crossed high-water mark
-output  [4:0]           dva_snp_addr_e;         // Upper 5b of cache set index PA[10:6]
+output  [`L1D_ADDRESS_HI-6:0]           dva_snp_addr_e;         // Upper 5b of cache set index PA[10:6]
 //output  [3:0]           dva_snp_set_vld_e;      // Lower 2b of cache set index - decoded
 //output  [1:0]           dva_snp_wy0_e ;         // way for addr<5:4>=00
 //output  [1:0]           dva_snp_wy1_e ;         // way for addr<5:4>=01
@@ -379,7 +404,7 @@ output                  lsu_fldd_vld_en;
 output  [3:0]           lsu_dfill_dcd_thrd ;
 output  [4:0]           lsu_fwdpkt_dest ;
 //output                  dcfill_src_dfq_sel ;    // ld-inv is src
-output [15:0]        dva_snp_bit_wr_en_e;
+output [`L1D_VAL_ARRAY_HI:0]        dva_snp_bit_wr_en_e;
 
 //output [3:0]         lsu_dcfill_mx_sel_e;
 //output               lsu_dcfill_addr_mx_sel_e;
@@ -472,9 +497,11 @@ wire  [1:0] fwdpkt_l2bnk_addr ;
 //wire  [4:0] ld_l1hit_rd_m,ld_l1hit_rd_g;
 wire  [4:0] ld_l1hit_rd_m;
 //wire  [13:0]  dfq_inv_data ;
-wire  [13:9]  dfq_inv_data_b13to9 ;
-wire  [7:2]   dfq_inv_data_b7to2 ;
-wire          dfq_inv_data_b0 ;
+// wire  [13:9]  dfq_inv_data_b13to9 ;
+// wire  [7:2]   dfq_inv_data_b7to2 ;
+// wire          dfq_inv_data_b0 ;
+wire                        dfq_inv_data_val ;
+wire  [`L1D_WAY_WIDTH-1:0]  dfq_inv_data_way ;
 wire          fwdpkt_vld;
 wire  [3:0]   dfill_dcd_thrd ;
 wire  [3:0]   error_rst ;
@@ -544,6 +571,7 @@ assign	lsu_dfq_vld_entry_w = dfq_vld_entry_exists_w ;
 //=================================================================================================
 
 // Assume all imisses are alligned to a 32B boundary in L2 ?
+// trin note: in piton, xinval is not used
 
 wire  imiss0_inv_en, imiss1_inv_en ;
 wire  imiss2_inv_en, imiss3_inv_en ;
@@ -1373,15 +1401,17 @@ assign  lsu_dfq_ldst_vld  =  lsu_qdp2_dfq_ld_vld | lsu_qdp2_dfq_st_vld;
 
 
 // Flop invalidate bits
-dffe_s  #(12) dfq_inv (
-        .din    ({lsu_cpu_inv_data_b13to9,lsu_cpu_inv_data_b7to2,lsu_cpu_inv_data_b0}),
-        .q    ({dfq_inv_data_b13to9,dfq_inv_data_b7to2,dfq_inv_data_b0}),
+dffe_s  #(`L1D_WAY_WIDTH+1) dfq_inv (
+        .din    ({lsu_cpu_inv_data_val,lsu_cpu_inv_data_way}),
+        .q    ({dfq_inv_data_val,dfq_inv_data_way}),
         //.din    (lsu_cpu_inv_data[13:0]),
         //.q      (dfq_inv_data[13:0]),
         .en     (dfq_vld_en),
         .clk    (clk),
         .se     (1'b0),       .si (),          .so ()
         );                                    
+
+// dfq_inv_data_b0
 
 
 /*
@@ -1799,8 +1829,9 @@ dff_s   dfqst_d1 (
 //  INVALIDATE PROCESSING
 //=================================================================================================
 
-assign  dva_snp_addr_e[4:0]  =  
-  lsu_cpx_pkt_ifill_type ? imiss_inv_set_index[6:2] : {lsu_cpx_pkt_inv_pa[4:0]} ; 
+assign  dva_snp_addr_e[`L1D_ADDRESS_HI-6:0]  =  
+  lsu_cpx_pkt_ifill_type ? imiss_inv_set_index[6:2] : {lsu_cpx_pkt_inv_pa[`L1D_ADDRESS_HI-6:0]} ; 
+// trin: mismatch fine for reconfigurable caches; xinval is not used
 
 //bug3356 - b4 never changed to invalidate the 2nd offset of the i$ fill.
 //          l2 now generates b4 in b129 of cpx ifill packet. for ifill pkt
@@ -1821,10 +1852,10 @@ assign  perror_dcd_b54[2] =  lsu_cpx_pkt_perror_set[1] & ~lsu_cpx_pkt_perror_set
 assign  perror_dcd_b54[3] =  lsu_cpx_pkt_perror_set[1] &  lsu_cpx_pkt_perror_set[0] ;
 
 wire   [3:0]           dva_snp_set_vld_e;      // Lower 2b of cache set index - decoded
-wire   [1:0]           dva_snp_wy0_e ;         // way for addr<5:4>=00
-wire   [1:0]           dva_snp_wy1_e ;         // way for addr<5:4>=01
-wire   [1:0]           dva_snp_wy2_e ;         // way for addr<5:4>=10
-wire   [1:0]           dva_snp_wy3_e ;         // way for addr<5:4>=11
+wire   [`L1D_WAY_MASK]           dva_snp_wy0_e ;         // way for addr<5:4>=00
+wire   [`L1D_WAY_MASK]           dva_snp_wy1_e ;         // way for addr<5:4>=01
+wire   [`L1D_WAY_MASK]           dva_snp_wy2_e ;         // way for addr<5:4>=10
+wire   [`L1D_WAY_MASK]           dva_snp_wy3_e ;         // way for addr<5:4>=11
 
 
 
@@ -1895,40 +1926,40 @@ dffe_s #(5)  dfq_by_wrway_ad54_ff (
 assign  dva_snp_set_vld_e[0] = 
 lsu_cpx_pkt_ifill_type ? imiss_dcd_b54[0] : 
   lsu_cpx_pkt_perror_dinv ? perror_dcd_b54[0] : 
-     stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b00) : dfq_inv_data_b0 ;
+     stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b00) : dfq_inv_data_val ;
      //stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b00) : cpx_cpu_inv_data[`CPX_AX0_INV_DVLD] ;
 assign  dva_snp_set_vld_e[1] = 
 lsu_cpx_pkt_ifill_type ? imiss_dcd_b54[1] : 
   lsu_cpx_pkt_perror_dinv ? perror_dcd_b54[1] : 
-     stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b01) : dfq_inv_data_b7to2[4] ;
+     stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b01) : dfq_inv_data_val;
      //stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b01) : cpx_cpu_inv_data[`CPX_AX1_INV_DVLD+4] ;
 assign  dva_snp_set_vld_e[2] = 
 lsu_cpx_pkt_ifill_type ? imiss_dcd_b54[2] :
   lsu_cpx_pkt_perror_dinv ? perror_dcd_b54[2] : 
-     stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b10) : dfq_inv_data_b7to2[7] ;
+     stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b10) : dfq_inv_data_val;
      //stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b10) : cpx_cpu_inv_data[`CPX_AX0_INV_DVLD+7] ;
 assign  dva_snp_set_vld_e[3] = 
 lsu_cpx_pkt_ifill_type ? imiss_dcd_b54[3] : 
   lsu_cpx_pkt_perror_dinv ? perror_dcd_b54[3] : 
-      stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b11) : dfq_inv_data_b13to9[11] ;
+      stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b11) : dfq_inv_data_val;
       //stack_type_dcfill_vld_d1 ? (lsu_dfq_byp_stack_adr_b54_d1[1:0]==2'b11) : cpx_cpu_inv_data[`CPX_AX1_INV_DVLD+11] ; 
 
-assign  dva_snp_wy0_e[1:0]   = 
-lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[1:0] : 
-   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : dfq_inv_data_b7to2[3:2] ;
-   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : cpx_cpu_inv_data[`CPX_AX0_INV_WY_HI:`CPX_AX0_INV_WY_LO] ;
-assign  dva_snp_wy1_e[1:0]   = 
-lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[1:0] : 
-   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : dfq_inv_data_b7to2[6:5] ;
-   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : cpx_cpu_inv_data[`CPX_AX1_INV_WY_HI+4:`CPX_AX1_INV_WY_LO+4] ;
-assign  dva_snp_wy2_e[1:0]   = 
-lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[1:0] : 
-   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : dfq_inv_data_b13to9[10:9] ;
-   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : cpx_cpu_inv_data[`CPX_AX0_INV_WY_HI+7:`CPX_AX0_INV_WY_LO+7] ;
-assign  dva_snp_wy3_e[1:0]   = 
-lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[1:0] : 
-   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : dfq_inv_data_b13to9[13:12] ;
-   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[1:0] : cpx_cpu_inv_data[`CPX_AX1_INV_WY_HI+11:`CPX_AX1_INV_WY_LO+11] ;
+assign  dva_snp_wy0_e[`L1D_WAY_MASK]   = 
+lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[`L1D_WAY_MASK] : 
+   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : dfq_inv_data_way;
+   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : cpx_cpu_inv_data[`CPX_AX0_INV_WY_HI:`CPX_AX0_INV_WY_LO] ;
+assign  dva_snp_wy1_e[`L1D_WAY_MASK]   = 
+lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[`L1D_WAY_MASK] : 
+   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : dfq_inv_data_way;
+   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : cpx_cpu_inv_data[`CPX_AX1_INV_WY_HI+4:`CPX_AX1_INV_WY_LO+4] ;
+assign  dva_snp_wy2_e[`L1D_WAY_MASK]   = 
+lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[`L1D_WAY_MASK] : 
+   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : dfq_inv_data_way;
+   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : cpx_cpu_inv_data[`CPX_AX0_INV_WY_HI+7:`CPX_AX0_INV_WY_LO+7] ;
+assign  dva_snp_wy3_e[`L1D_WAY_MASK]   = 
+lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[`L1D_WAY_MASK] : 
+   stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : dfq_inv_data_way;
+   //stack_type_dcfill_vld_d1 ? lsu_dfq_byp_stack_wrway_d1[`L1D_WAY_MASK] : cpx_cpu_inv_data[`CPX_AX1_INV_WY_HI+11:`CPX_AX1_INV_WY_LO+11] ;
 
 
 
@@ -1945,25 +1976,36 @@ lsu_cpx_pkt_ifill_type ? lsu_cpx_pkt_invwy[1:0] :
 wire     derror_inv_vld ;
 assign   derror_inv_vld  =  dfq_st_vld & lsu_cpx_pkt_perror_dinv ;
 
-   assign dva_snp_bit_wr_en_e [15] =  dva_snp_set_vld_e[3] &  (( dva_snp_wy3_e [1] &  dva_snp_wy3_e[0]) | derror_inv_vld ) ;
-   assign dva_snp_bit_wr_en_e [14] =  dva_snp_set_vld_e[3] &  (( dva_snp_wy3_e [1] & ~dva_snp_wy3_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [13] =  dva_snp_set_vld_e[3] &  ((~dva_snp_wy3_e [1] &  dva_snp_wy3_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [12] =  dva_snp_set_vld_e[3] &  ((~dva_snp_wy3_e [1] & ~dva_snp_wy3_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [15] =  dva_snp_set_vld_e[3] &  (( dva_snp_wy3_e [1] &  dva_snp_wy3_e[0]) | derror_inv_vld ) ;
+   // assign dva_snp_bit_wr_en_e [14] =  dva_snp_set_vld_e[3] &  (( dva_snp_wy3_e [1] & ~dva_snp_wy3_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [13] =  dva_snp_set_vld_e[3] &  ((~dva_snp_wy3_e [1] &  dva_snp_wy3_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [12] =  dva_snp_set_vld_e[3] &  ((~dva_snp_wy3_e [1] & ~dva_snp_wy3_e[0]) | derror_inv_vld );
                                                                                                
-   assign dva_snp_bit_wr_en_e [11] =  dva_snp_set_vld_e[2] &  (( dva_snp_wy2_e [1] &  dva_snp_wy2_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [10] =  dva_snp_set_vld_e[2] &  (( dva_snp_wy2_e [1] & ~dva_snp_wy2_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [09] =  dva_snp_set_vld_e[2] &  ((~dva_snp_wy2_e [1] &  dva_snp_wy2_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [08] =  dva_snp_set_vld_e[2] &  ((~dva_snp_wy2_e [1] & ~dva_snp_wy2_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [11] =  dva_snp_set_vld_e[2] &  (( dva_snp_wy2_e [1] &  dva_snp_wy2_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [10] =  dva_snp_set_vld_e[2] &  (( dva_snp_wy2_e [1] & ~dva_snp_wy2_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [09] =  dva_snp_set_vld_e[2] &  ((~dva_snp_wy2_e [1] &  dva_snp_wy2_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [08] =  dva_snp_set_vld_e[2] &  ((~dva_snp_wy2_e [1] & ~dva_snp_wy2_e[0]) | derror_inv_vld );
                                                                                                
-   assign dva_snp_bit_wr_en_e [07] =  dva_snp_set_vld_e[1] &  (( dva_snp_wy1_e [1] &  dva_snp_wy1_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [06] =  dva_snp_set_vld_e[1] &  (( dva_snp_wy1_e [1] & ~dva_snp_wy1_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [05] =  dva_snp_set_vld_e[1] &  ((~dva_snp_wy1_e [1] &  dva_snp_wy1_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [04] =  dva_snp_set_vld_e[1] &  ((~dva_snp_wy1_e [1] & ~dva_snp_wy1_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [07] =  dva_snp_set_vld_e[1] &  (( dva_snp_wy1_e [1] &  dva_snp_wy1_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [06] =  dva_snp_set_vld_e[1] &  (( dva_snp_wy1_e [1] & ~dva_snp_wy1_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [05] =  dva_snp_set_vld_e[1] &  ((~dva_snp_wy1_e [1] &  dva_snp_wy1_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [04] =  dva_snp_set_vld_e[1] &  ((~dva_snp_wy1_e [1] & ~dva_snp_wy1_e[0]) | derror_inv_vld );
                                                                                                
-   assign dva_snp_bit_wr_en_e [03] =  dva_snp_set_vld_e[0] &  (( dva_snp_wy0_e [1] &  dva_snp_wy0_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [02] =  dva_snp_set_vld_e[0] &  (( dva_snp_wy0_e [1] & ~dva_snp_wy0_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [01] =  dva_snp_set_vld_e[0] &  ((~dva_snp_wy0_e [1] &  dva_snp_wy0_e[0]) | derror_inv_vld );
-   assign dva_snp_bit_wr_en_e [00] =  dva_snp_set_vld_e[0] &  ((~dva_snp_wy0_e [1] & ~dva_snp_wy0_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [03] =  dva_snp_set_vld_e[0] &  (( dva_snp_wy0_e [1] &  dva_snp_wy0_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [02] =  dva_snp_set_vld_e[0] &  (( dva_snp_wy0_e [1] & ~dva_snp_wy0_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [01] =  dva_snp_set_vld_e[0] &  ((~dva_snp_wy0_e [1] &  dva_snp_wy0_e[0]) | derror_inv_vld );
+   // assign dva_snp_bit_wr_en_e [00] =  dva_snp_set_vld_e[0] &  ((~dva_snp_wy0_e [1] & ~dva_snp_wy0_e[0]) | derror_inv_vld );
+                                                                                               
+
+<%
+  template = '''
+      assign dva_snp_bit_wr_en_e [(0*`L1D_WAY_COUNT) + __WAY] =  dva_snp_set_vld_e[0] &  ((dva_snp_wy0_e == __WAY) | derror_inv_vld );
+      assign dva_snp_bit_wr_en_e [(1*`L1D_WAY_COUNT) + __WAY] =  dva_snp_set_vld_e[1] &  ((dva_snp_wy1_e == __WAY) | derror_inv_vld );
+      assign dva_snp_bit_wr_en_e [(2*`L1D_WAY_COUNT) + __WAY] =  dva_snp_set_vld_e[2] &  ((dva_snp_wy2_e == __WAY) | derror_inv_vld );
+      assign dva_snp_bit_wr_en_e [(3*`L1D_WAY_COUNT) + __WAY] =  dva_snp_set_vld_e[3] &  ((dva_snp_wy3_e == __WAY) | derror_inv_vld );
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
 
 
 //=================================================================================================
@@ -2157,45 +2199,13 @@ assign lsu_tlu_l2_dmiss[3] =  dfq_thread3 & dcfill_active_e & lsu_cpx_pkt_l2miss
 wire  [7:0]  cpx_inv_vld;
 wire  [7:0]  cpu_sel_dcd;
 
-assign  cpx_inv_vld[0] = cpx_spc_data_cx_b88 |
-                         cpx_spc_data_cx_b56 |
-                         cpx_spc_data_cx_b32 |
-                         cpx_spc_data_cx_b0 ;
+// assign  cpx_inv_vld[0] = cpx_spc_data_cx_b88 |
+//                          cpx_spc_data_cx_b56 |
+//                          cpx_spc_data_cx_b32 |
+//                          cpx_spc_data_cx_b0 ;
 
-assign  cpx_inv_vld[1] = cpx_spc_data_cx_b91 |
-                         cpx_spc_data_cx_b60 |
-                         cpx_spc_data_cx_b35 |
-                         cpx_spc_data_cx_b4 ;
-
-assign  cpx_inv_vld[2] = cpx_spc_data_cx_b94 |
-                         cpx_spc_data_cx_b64 |
-                         cpx_spc_data_cx_b38 |
-                         cpx_spc_data_cx_b8 ;
-
-assign  cpx_inv_vld[3] = cpx_spc_data_cx_b97 |
-                         cpx_spc_data_cx_b68 |
-                         cpx_spc_data_cx_b41 |
-                         cpx_spc_data_cx_b12 ;
-
-assign  cpx_inv_vld[4] = cpx_spc_data_cx_b100 |
-                         cpx_spc_data_cx_b72  |
-                         cpx_spc_data_cx_b44  |
-                         cpx_spc_data_cx_b16  ;
-
-assign  cpx_inv_vld[5] = cpx_spc_data_cx_b103 |
-                         cpx_spc_data_cx_b76  |
-                         cpx_spc_data_cx_b47  |
-                         cpx_spc_data_cx_b20  ;
-
-assign  cpx_inv_vld[6] = cpx_spc_data_cx_b106 |
-                         cpx_spc_data_cx_b80  |
-                         cpx_spc_data_cx_b50  |
-                         cpx_spc_data_cx_b24  ;
-
-assign  cpx_inv_vld[7] = cpx_spc_data_cx_b109 |
-                         cpx_spc_data_cx_b84  |
-                         cpx_spc_data_cx_b53  |
-                         cpx_spc_data_cx_b28  ;
+assign  cpx_inv_vld[0] = cpx_spc_data_cx_dcache_inval_val;
+assign  cpx_inv_vld[7:1] = 7'b0;
 
 assign cpu_sel_dcd[7:4] =  ({4{ lsu_cpu_uhlf_sel}} & cpu_sel[3:0]);
 assign cpu_sel_dcd[3:0] =  ({4{~lsu_cpu_uhlf_sel}} & cpu_sel[3:0]);
@@ -2209,29 +2219,32 @@ assign lsu_cpx_spc_inv_vld  =  |(cpx_inv_vld[7:0] & cpu_sel_dcd[7:0]);
 wire  [7:0]  cpx_iinv_vld;
 wire         cpx_spc_iinv_vld;
 
-assign  cpx_iinv_vld[0] = cpx_spc_data_cx_b57 |
-                          cpx_spc_data_cx_b1  ;
+// assign  cpx_iinv_vld[0] = cpx_spc_data_cx_b57 |
+//                           cpx_spc_data_cx_b1  ;
 
-assign  cpx_iinv_vld[1] = cpx_spc_data_cx_b61 |
-                          cpx_spc_data_cx_b5  ;
+// assign  cpx_iinv_vld[1] = cpx_spc_data_cx_b61 |
+//                           cpx_spc_data_cx_b5  ;
 
-assign  cpx_iinv_vld[2] = cpx_spc_data_cx_b65 |
-                          cpx_spc_data_cx_b9  ;
+// assign  cpx_iinv_vld[2] = cpx_spc_data_cx_b65 |
+//                           cpx_spc_data_cx_b9  ;
 
-assign  cpx_iinv_vld[3] = cpx_spc_data_cx_b69 |
-                          cpx_spc_data_cx_b13 ;
+// assign  cpx_iinv_vld[3] = cpx_spc_data_cx_b69 |
+//                           cpx_spc_data_cx_b13 ;
 
-assign  cpx_iinv_vld[4] = cpx_spc_data_cx_b73 |
-                          cpx_spc_data_cx_b17 ;
+// assign  cpx_iinv_vld[4] = cpx_spc_data_cx_b73 |
+//                           cpx_spc_data_cx_b17 ;
 
-assign  cpx_iinv_vld[5] = cpx_spc_data_cx_b77 |
-                          cpx_spc_data_cx_b21 ;
+// assign  cpx_iinv_vld[5] = cpx_spc_data_cx_b77 |
+//                           cpx_spc_data_cx_b21 ;
 
-assign  cpx_iinv_vld[6] = cpx_spc_data_cx_b81 |
-                          cpx_spc_data_cx_b25 ;
+// assign  cpx_iinv_vld[6] = cpx_spc_data_cx_b81 |
+//                           cpx_spc_data_cx_b25 ;
 
-assign  cpx_iinv_vld[7] = cpx_spc_data_cx_b85 |
-                          cpx_spc_data_cx_b29 ;
+// assign  cpx_iinv_vld[7] = cpx_spc_data_cx_b85 |
+//                           cpx_spc_data_cx_b29 ;
+
+assign cpx_iinv_vld[0] = cpx_spc_data_cx_icache_inval_val;
+assign cpx_iinv_vld[7:1] = 7'b0;
 
 //bug3701 - include i$ parity error invalidate - b[124]
 assign cpx_spc_iinv_vld  =  |( (cpx_iinv_vld[7:0] | {8{cpx_spc_data_cx_b124to123[`CPX_PERR_DINV+1]}}) & cpu_sel_dcd[7:0] )  ;

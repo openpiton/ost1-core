@@ -19,6 +19,15 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // 
 // ========== Copyright Header End ============================================
+
+
+<%
+   import math
+   import pyhplib
+   from pyhplib import *
+%>
+
+
 /////////////////////////////////////////////////////////////////
 /*
 //  Description:  LSU Data Cache Control and Minor Datapath
@@ -217,8 +226,8 @@ output     dctl_rst_l;
 input  lsu_diag_va_prty_invrt ;
 
    input         dva_svld_e ;
-   input [15:0] dva_snp_bit_wr_en_e;
-   input [4:0]  dva_snp_addr_e;
+   input [`L1D_VAL_ARRAY_HI:0] dva_snp_bit_wr_en_e;
+   input [`L1D_ADDRESS_HI-6:0]  dva_snp_addr_e;
 
 input	      lsu_tte_data_cp_g ; // cp bit from tlb    
 input         lsu_l2fill_vld ;    // fill from dfq to d$.
@@ -268,7 +277,7 @@ input         lmq1_l2fill_fpld ;      // fp load
 input         lmq2_l2fill_fpld ;      // fp load
 input         lmq3_l2fill_fpld ;      // fp load
 
-input [3:0]   cache_way_hit_buf1 ;          // hit in set of cache.
+input [`L1D_WAY_COUNT-1:0]   cache_way_hit_buf1 ;          // hit in set of cache.
    input      cache_hit;
    
 //input [3:0]   lsu_byp_misc_addr_m ;   // lower 3bits of addr for ldxa/raw etc
@@ -339,7 +348,7 @@ input         lsu_st_wr_dcache ;
 
 input         tlu_lsu_asi_update_m ;  // update asi
 input  [1:0]  tlu_lsu_tid_m ;         // thread for asi update
-input [3:0]   lsu_rd_dtag_parity_g;     // calculated tag parity
+input [`L1D_WAY_ARRAY_MASK]   lsu_rd_dtag_parity_g;     // calculated tag parity
 
 input         dcache_rparity_err_wb;     // calculated tag parity
    
@@ -349,8 +358,8 @@ input         lsu_byp_ldd_oddrd_m ;   // rd fill for non-alt ldd
 input [3:0]   tlu_lsu_redmode ;       // redmode
 input [3:0]   tlu_lsu_redmode_rst_d1 ;   // redmode
 //input [2:0]   const_cpuid ;           // cpu's id
-input [3:0]   dva_vld_m ;             // valid bits for cache.
-output [3:0]  dva_vld_m_bf;
+input [`L1D_WAY_COUNT-1:0]   dva_vld_m ;             // valid bits for cache.
+output [`L1D_WAY_COUNT-1:0]  dva_vld_m_bf;
    
 input [1:0]   lsu_dfill_tid_e ;       // thread id
 input         ifu_lsu_asi_ack;        // asi ack from ifu
@@ -431,8 +440,8 @@ output	[3:0] lsu_diagnstc_va_sel ;
 
 output	[2:0] lsu_err_addr_sel ;
 
-output [15:0] dva_bit_wr_en_e;
-output [10:6] dva_wr_adr_e;
+output [`L1D_VAL_ARRAY_HI:0] dva_bit_wr_en_e;
+output [`L1D_ADDRESS_HI:6] dva_wr_adr_e;
    
 output      lsu_exu_ldst_miss_w2 ;  // load misses in d$.
 //output  [3:0]   lsu_way_hit ;   // ld/st access hits in d$.
@@ -793,7 +802,7 @@ output  [3:0] sctxt_state_wr_thrd ;
    output  [3:0] 	lsu_ld_inst_vld_g ;
    
    output  [1:0]     lsu_dcache_rand;
-   output  [1:0]     lsu_encd_way_hit;
+   output reg  [1:0]     lsu_encd_way_hit;
    output            lsu_way_hit_or;
 //   output            lsu_quad_asi_g;
 
@@ -803,14 +812,14 @@ output  [3:0] sctxt_state_wr_thrd ;
    output	    	lsu_ifu_asi_data_en_l ;
 
 
-//dcfill_addr [10:0]
-   input [7:0]  dcache_iob_addr_e;
-   input [6:0]  mbist_dcache_index;
+//dcfill_addr [`L1D_ADDRESS_HI:0]
+   input [`L1D_ADDRESS_HI-3:0]  dcache_iob_addr_e;
+   input [`L1D_ADDRESS_HI-4:0]  mbist_dcache_index;
    input        mbist_dcache_word;
-   input [10:0] lsu_diagnstc_wr_addr_e;
-   input [10:0] st_dcfill_addr;
-   output [10:3] lsu_dcache_fill_addr_e;
-   output [10:4] lsu_dcache_fill_addr_e_err;
+   input [`L1D_ADDRESS_HI:0] lsu_diagnstc_wr_addr_e;
+   input [`L1D_ADDRESS_HI:0] st_dcfill_addr;
+   output [`L1D_ADDRESS_HI:3] lsu_dcache_fill_addr_e;
+   output [`L1D_ADDRESS_HI:4] lsu_dcache_fill_addr_e_err;
 
    input         lsu_dfq_ld_vld;
    input         lsu_dfq_st_vld;
@@ -829,31 +838,32 @@ output  [3:0] sctxt_state_wr_thrd ;
    input [1:0]   lsu_dfq_byp_tid;   //from qdp2
    input         dfq_byp_ff_en;     //from qctl2 
 
-   input [1:0]   lsu_dcache_iob_way_e;   //from qdp2
+   input [`L1D_WAY_MASK]   lsu_dcache_iob_way_e;   //from qdp2
  
    input   [1:0]  mbist_dcache_way;   
-   output  [3:0]  lsu_bist_rsel_way_e;
+   output  [`L1D_WAY_ARRAY_MASK]  lsu_bist_rsel_way_e;
    
-   input   [1:0]   lsu_diagnstc_wr_way_e ;  //from dctldp
+   input   [`L1D_WAY_MASK]   lsu_diagnstc_wr_way_e ;  //from dctldp
 
-   input [1:0]     lsu_st_way_e;    //from qdp2
+   input [`L1D_WAY_MASK]     lsu_st_way_e;    //from qdp2
 
-   input [1:0]     lmq0_pcx_pkt_way;  //from qctl1
-   input [1:0]     lmq1_pcx_pkt_way;
-   input [1:0]     lmq2_pcx_pkt_way;
-   input [1:0]     lmq3_pcx_pkt_way;
-   output [3:0]    lsu_dcache_fill_way_e;
+   input [`L1D_WAY_MASK]     lmq0_pcx_pkt_way;  //from qctl1
+   input [`L1D_WAY_MASK]     lmq1_pcx_pkt_way;
+   input [`L1D_WAY_MASK]     lmq2_pcx_pkt_way;
+   input [`L1D_WAY_MASK]     lmq3_pcx_pkt_way;
+   output [`L1D_WAY_COUNT-1:0]    lsu_dcache_fill_way_e;
 
+// input  [3*(`L1D_WAY_COUNT)-1:0]             lmq_ld_rq_type ;        // for identifying atomic ld.
 
 input  [2:0]             lmq0_ld_rq_type ;        // for identifying atomic ld.
 input  [2:0]             lmq1_ld_rq_type ;        // for identifying atomic ld.
 input  [2:0]             lmq2_ld_rq_type ;        // for identifying atomic ld.
 input  [2:0]             lmq3_ld_rq_type ;        // for identifying atomic ld.
    
-input  [10:0]            lmq0_pcx_pkt_addr;
-input  [10:0]            lmq1_pcx_pkt_addr;
-input  [10:0]            lmq2_pcx_pkt_addr;
-input  [10:0]            lmq3_pcx_pkt_addr;
+input  [`L1D_ADDRESS_HI:0]            lmq0_pcx_pkt_addr;
+input  [`L1D_ADDRESS_HI:0]            lmq1_pcx_pkt_addr;
+input  [`L1D_ADDRESS_HI:0]            lmq2_pcx_pkt_addr;
+input  [`L1D_ADDRESS_HI:0]            lmq3_pcx_pkt_addr;
 
 output                   lmq_ld_addr_b3;
 
@@ -877,10 +887,10 @@ wire          lsu_diagnstc_wr_src_sel_e ; // dcache/dtag/v write - diag
 wire         dctl_flush_pipe_w ;   // flush pipe due to error
  wire        dctl_early_flush_w;
    
-wire  [10:0] lmq_pcx_pkt_addr;
+wire  [`L1D_ADDRESS_HI:0] lmq_pcx_pkt_addr;
 wire  [2:0]  lmq_ld_rq_type_e;
    
-wire [10:0]  dcache_fill_addr_e;
+wire [`L1D_ADDRESS_HI:0]  dcache_fill_addr_e;
 wire [2:0]   dcache_wr_addr_e ;       
 wire	lsuctl_dtlb_byp_e ;
    
@@ -897,7 +907,7 @@ wire      ld_inst_vld_m,ld_inst_vld_g ;
 wire      st_inst_vld_m,st_inst_vld_g ;
 wire      fp_ldst_m,fp_ldst_g,fp_ldst_w2 ;
 wire      lsu_ld_hit_wb, lsu_ld_miss_wb ;
-wire  [3:0]   lsu_way_hit ;
+wire  [`L1D_WAY_ARRAY_MASK]   lsu_way_hit ;
 wire  [1:0]   ldst_sz_m,ldst_sz_g ;
 wire  [4:0]   ld_rd_m, ld_rd_g ;
 wire      lsu_dtlb_bypass_g,dtlb_bypass_e,dtlb_bypass_m ;
@@ -1103,7 +1113,7 @@ wire    fpld_byp_data_vld ;
 wire    dcache_rd_parity_error ;
 //SC wire    tte_data_parity_error ;
 
-wire  [3:0]   dtag_parity_error;
+wire  [`L1D_WAY_ARRAY_MASK]   dtag_parity_error;
 //wire    dtag_mtag_parity_error ;
 //wire    daccess_error ;
 //SC wire    dmmu_miss_g ;
@@ -1233,7 +1243,7 @@ wire	bendian_g ;
 wire      lsu_tlb_tag_rd_vld_g ;
 wire      lsu_dtlb_invalid_all_m ;
 
-wire  [3:0]   dva_vld_g;
+wire  [`L1D_WAY_ARRAY_MASK]   dva_vld_g;
 wire          lsu_diagnstc_asi_rd_en;
 wire  [3:0]   ld_thrd_byp_sel_g ;
 wire  [3:0]           lmq_byp_data_sel0 ;     // ldxa vs stb bypass data sel.
@@ -2417,11 +2427,18 @@ assign  asi_st_vld_g = st_inst_vld_unflushed & lsu_inst_vld_w & ~dctl_early_flus
 assign  ld_inst_vld_g = ld_inst_vld_unflushed & lsu_inst_vld_w & ~dctl_flush_pipe_w ;
 assign  st_inst_vld_g = st_inst_vld_unflushed & lsu_inst_vld_w & ~dctl_flush_pipe_w ;
 
-assign  lsu_way_hit[0] = cache_way_hit_buf1[0] & dcache_enable_g ;
-assign  lsu_way_hit[1] = cache_way_hit_buf1[1] & dcache_enable_g ;
-assign  lsu_way_hit[2] = cache_way_hit_buf1[2] & dcache_enable_g ;
-assign  lsu_way_hit[3] = cache_way_hit_buf1[3] & dcache_enable_g ;
-   
+// assign  lsu_way_hit[0] = cache_way_hit_buf1[0] & dcache_enable_g ;
+// assign  lsu_way_hit[1] = cache_way_hit_buf1[1] & dcache_enable_g ;
+// assign  lsu_way_hit[2] = cache_way_hit_buf1[2] & dcache_enable_g ;
+// assign  lsu_way_hit[3] = cache_way_hit_buf1[3] & dcache_enable_g ;
+  
+<%
+  template = '''
+   assign  lsu_way_hit[__WAY] = cache_way_hit_buf1[__WAY] & dcache_enable_g ;
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
+ 
 //assign  st_set_index_g[5:0] = ldst_va_g[9:4] ;
 //assign  st_set_way_g[3:1] = lsu_way_hit[3:1] ;
 
@@ -2514,7 +2531,7 @@ dff_s #(1)  stgw3_perr (
    assign ldd_force_l2access_g = int_ldd_g;
 
 assign  lsu_ld_miss_wb  = 
-(~(|lsu_way_hit[3:0]) | ~dcache_enable_g | ~(tlb_cam_hit_g | lsu_dtlb_bypass_g) |
+(~(|lsu_way_hit[`L1D_WAY_ARRAY_MASK]) | ~dcache_enable_g | ~(tlb_cam_hit_g | lsu_dtlb_bypass_g) |
   ldxa_internal | ldd_force_l2access_g | atomic_g |  endian_mispred_g | // remove stb_cam_hit
   dcache_rd_parity_error | dtag_perror_g) & 
 	~((dc_diagnstc_asi_g & lsu_alt_space_g)) & 
@@ -2525,7 +2542,7 @@ assign  lsu_ld_miss_wb  =
   ncache_asild_rq_g ;   // asi ld requires bypass
 
 assign  lsu_ld_hit_wb   = 
-((|lsu_way_hit[3:0])  & dcache_enable_g & (tlb_cam_hit_g | lsu_dtlb_bypass_g) &  //bug3702
+((|lsu_way_hit[`L1D_WAY_ARRAY_MASK])  & dcache_enable_g & (tlb_cam_hit_g | lsu_dtlb_bypass_g) &  //bug3702
   ~ldxa_internal & ~dcache_rd_parity_error & ~dtag_perror_g & ~endian_mispred_g &
   ~ldd_force_l2access_g & ~atomic_g &  ~ncache_asild_rq_g) &  // remove stb_cam_hit
 ~((dc_diagnstc_asi_g & lsu_alt_space_g)) &
@@ -2820,39 +2837,49 @@ assign  lsu_dtagv_wr_vld_e =
   lsu_bist_wvld_e ;     // bist clears dva by default
 
 // mem cell change for dva
-   wire [15:0] dva_fill_bit_wr_en_e;
+   wire [`L1D_VAL_ARRAY_HI:0] dva_fill_bit_wr_en_e;
 
-   assign      dva_fill_bit_wr_en_e[15] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
-   assign      dva_fill_bit_wr_en_e[14] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
-   assign      dva_fill_bit_wr_en_e[13] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
-   assign      dva_fill_bit_wr_en_e[12] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign      dva_fill_bit_wr_en_e[15] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
+   // assign      dva_fill_bit_wr_en_e[14] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
+   // assign      dva_fill_bit_wr_en_e[13] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
+   // assign      dva_fill_bit_wr_en_e[12] = dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign dva_fill_bit_wr_en_e[15:12] = (dcache_fill_addr_e[5:4] == 2'b11) ? lsu_dcache_fill_way_e[3:0] : 4'b0;
 
-   assign      dva_fill_bit_wr_en_e[11] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
-   assign      dva_fill_bit_wr_en_e[10] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
-   assign      dva_fill_bit_wr_en_e[09] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
-   assign      dva_fill_bit_wr_en_e[08] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign      dva_fill_bit_wr_en_e[11] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
+   // assign      dva_fill_bit_wr_en_e[10] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
+   // assign      dva_fill_bit_wr_en_e[09] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
+   // assign      dva_fill_bit_wr_en_e[08] = dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign dva_fill_bit_wr_en_e[11:08] = (dcache_fill_addr_e[5:4] == 2'b10) ? lsu_dcache_fill_way_e[3:0] : 4'b0;
   
-   assign      dva_fill_bit_wr_en_e[07] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
-   assign      dva_fill_bit_wr_en_e[06] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
-   assign      dva_fill_bit_wr_en_e[05] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
-   assign      dva_fill_bit_wr_en_e[04] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign      dva_fill_bit_wr_en_e[07] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
+   // assign      dva_fill_bit_wr_en_e[06] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
+   // assign      dva_fill_bit_wr_en_e[05] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
+   // assign      dva_fill_bit_wr_en_e[04] = ~dcache_fill_addr_e[5] & dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign dva_fill_bit_wr_en_e[07:04] = (dcache_fill_addr_e[5:4] == 2'b01) ? lsu_dcache_fill_way_e[3:0] : 4'b0;
 
-   assign      dva_fill_bit_wr_en_e[03] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
-   assign      dva_fill_bit_wr_en_e[02] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
-   assign      dva_fill_bit_wr_en_e[01] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
-   assign      dva_fill_bit_wr_en_e[00] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign      dva_fill_bit_wr_en_e[03] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[3];
+   // assign      dva_fill_bit_wr_en_e[02] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[2];
+   // assign      dva_fill_bit_wr_en_e[01] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[1];
+   // assign      dva_fill_bit_wr_en_e[00] = ~dcache_fill_addr_e[5] & ~dcache_fill_addr_e[4] & lsu_dcache_fill_way_e[0];
+   // assign dva_fill_bit_wr_en_e[03:00] = (dcache_fill_addr_e[5:4] == 2'b00) ? lsu_dcache_fill_way_e[3:0] : 4'b0;
+   assign dva_fill_bit_wr_en_e[`L1D_WAY_COUNT*1-1 -: `L1D_WAY_COUNT] = (dcache_fill_addr_e[5:4] == 2'b00) ? lsu_dcache_fill_way_e[`L1D_WAY_COUNT-1:0] : {`L1D_WAY_COUNT{1'b0}};
+   assign dva_fill_bit_wr_en_e[`L1D_WAY_COUNT*2-1 -: `L1D_WAY_COUNT] = (dcache_fill_addr_e[5:4] == 2'b01) ? lsu_dcache_fill_way_e[`L1D_WAY_COUNT-1:0] : {`L1D_WAY_COUNT{1'b0}};
+   assign dva_fill_bit_wr_en_e[`L1D_WAY_COUNT*3-1 -: `L1D_WAY_COUNT] = (dcache_fill_addr_e[5:4] == 2'b10) ? lsu_dcache_fill_way_e[`L1D_WAY_COUNT-1:0] : {`L1D_WAY_COUNT{1'b0}};
+   assign dva_fill_bit_wr_en_e[`L1D_WAY_COUNT*4-1 -: `L1D_WAY_COUNT] = (dcache_fill_addr_e[5:4] == 2'b11) ? lsu_dcache_fill_way_e[`L1D_WAY_COUNT-1:0] : {`L1D_WAY_COUNT{1'b0}};
 
-   wire [15:0] dva_bit_wr_en_e;
-   assign      dva_bit_wr_en_e[15:0] = dva_svld_e ? dva_snp_bit_wr_en_e[15:0] : dva_fill_bit_wr_en_e;
 
-   wire [4:0]  dva_snp_addr_e_bf;
-   bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b4 (.a(dva_snp_addr_e[4]), .z(dva_snp_addr_e_bf[4]));
-   bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b3 (.a(dva_snp_addr_e[3]), .z(dva_snp_addr_e_bf[3]));
-   bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b2 (.a(dva_snp_addr_e[2]), .z(dva_snp_addr_e_bf[2]));
-   bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b1 (.a(dva_snp_addr_e[1]), .z(dva_snp_addr_e_bf[1]));
-   bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b0 (.a(dva_snp_addr_e[0]), .z(dva_snp_addr_e_bf[0]));
 
-   assign      dva_wr_adr_e[10:6] = dva_svld_e ? dva_snp_addr_e_bf[4:0] : dcache_fill_addr_e[10:6];
+   wire [`L1D_VAL_ARRAY_HI:0] dva_bit_wr_en_e;
+   assign      dva_bit_wr_en_e[`L1D_VAL_ARRAY_HI:0] = dva_svld_e ? dva_snp_bit_wr_en_e[`L1D_VAL_ARRAY_HI:0] : dva_fill_bit_wr_en_e;
+
+   // wire [`L1D_ADDRESS_HI-6:0]  dva_snp_addr_e_bf;
+   // bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b4 (.a(dva_snp_addr_e[4]), .z(dva_snp_addr_e_bf[4]));
+   // bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b3 (.a(dva_snp_addr_e[3]), .z(dva_snp_addr_e_bf[3]));
+   // bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b2 (.a(dva_snp_addr_e[2]), .z(dva_snp_addr_e_bf[2]));
+   // bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b1 (.a(dva_snp_addr_e[1]), .z(dva_snp_addr_e_bf[1]));
+   // bw_u1_buf_5x UZsize_dva_snp_addr_e_bf_b0 (.a(dva_snp_addr_e[0]), .z(dva_snp_addr_e_bf[0]));
+
+   assign      dva_wr_adr_e[`L1D_ADDRESS_HI:6] = dva_svld_e ? dva_snp_addr_e[`L1D_ADDRESS_HI-6:0] : dcache_fill_addr_e[`L1D_ADDRESS_HI:6];
 
 // should ldxa_data_vld be included ?
 
@@ -4780,14 +4807,14 @@ assign  lsu_ifu_tlb_tag_ue  = asi_tte_tag_perror ; */
 
 // move parity error calculation to g stage
 
-dff_s  #(4) dva_vld_g_ff (
-         .din    (dva_vld_m[3:0]),
-         .q      (dva_vld_g[3:0]),
+dff_s  #(`L1D_WAY_COUNT) dva_vld_g_ff (
+         .din    (dva_vld_m[`L1D_WAY_COUNT-1:0]),
+         .q      (dva_vld_g[`L1D_WAY_COUNT-1:0]),
         .clk    (clk),
         .se     (se),       .si (),          .so ()
         ); 
 
-   assign dva_vld_m_bf[3:0] = dva_vld_m[3:0];
+   assign dva_vld_m_bf[`L1D_WAY_COUNT-1:0] = dva_vld_m[`L1D_WAY_COUNT-1:0];
    
 wire	dtag_perr_en ; 
 assign	dtag_perr_en = 
@@ -4795,18 +4822,27 @@ dcache_enable_g & ~(asi_internal_g & lsu_alt_space_g) & // Bug 3541
   ~(lsu_alt_space_g & blk_asi_g) &  // Bug 3926. 
   ~atomic_g & // Bug 4274,4297 
   ~pref_inst_g ; // Bug 5046
-assign  dtag_parity_error[0] = 
-      lsu_rd_dtag_parity_g[0] & dva_vld_g[0] & dtag_perr_en;
-assign  dtag_parity_error[1] = 
-      lsu_rd_dtag_parity_g[1] & dva_vld_g[1] & dtag_perr_en ;
-assign  dtag_parity_error[2] = 
-      lsu_rd_dtag_parity_g[2] & dva_vld_g[2] & dtag_perr_en ;
-assign  dtag_parity_error[3] = 
-      lsu_rd_dtag_parity_g[3] & dva_vld_g[3] & dtag_perr_en ;
+// assign  dtag_parity_error[0] = 
+//       lsu_rd_dtag_parity_g[0] & dva_vld_g[0] & dtag_perr_en;
+// assign  dtag_parity_error[1] = 
+//       lsu_rd_dtag_parity_g[1] & dva_vld_g[1] & dtag_perr_en ;
+// assign  dtag_parity_error[2] = 
+//       lsu_rd_dtag_parity_g[2] & dva_vld_g[2] & dtag_perr_en ;
+// assign  dtag_parity_error[3] = 
+//       lsu_rd_dtag_parity_g[3] & dva_vld_g[3] & dtag_perr_en ;
+<%
+  template = '''
+      assign  dtag_parity_error[__WAY] = 
+            lsu_rd_dtag_parity_g[__WAY] & dva_vld_g[__WAY] & dtag_perr_en ;
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
 
-assign  dtag_perror_g = |dtag_parity_error[3:0] ;
+
+
+assign  dtag_perror_g = |dtag_parity_error[`L1D_WAY_COUNT-1:0] ;
 assign  lsu_dcache_tag_perror_g = 
-  (|dtag_parity_error[3:0]) & ld_inst_vld_unflushed & lsu_inst_vld_w &
+  (|dtag_parity_error[`L1D_WAY_COUNT-1:0]) & ld_inst_vld_unflushed & lsu_inst_vld_w &
   // Correction pkt should not be generated to io.
   ~(tlb_pgnum[39] & (lsu_dtlb_bypass_g | (~lsu_dtlb_bypass_g & tlb_cam_hit_g))) ;
 //  (|dtag_parity_error[3:0]) & ld_inst_vld_unflushed & lsu_inst_vld_w &
@@ -6024,11 +6060,14 @@ assign  lsu_dcache_rand[1:0]  =  dcache_rand[1:0]; */
 //  Packet Assembly
 //=========================================================================================
 
-assign lsu_encd_way_hit[0] = cache_way_hit_buf1[1] | cache_way_hit_buf1[3] ;
-assign lsu_encd_way_hit[1] = cache_way_hit_buf1[2] | cache_way_hit_buf1[3] ;
+// assign lsu_encd_way_hit[0] = cache_way_hit_buf1[1] | cache_way_hit_buf1[3] ;
+// assign lsu_encd_way_hit[1] = cache_way_hit_buf1[2] | cache_way_hit_buf1[3] ;
+<%
+   GenPriorityEncoder("cache_way_hit_buf1", "lsu_encd_way_hit", CONFIG_L1D_ASSOCIATIVITY);
+%>
 
 //assign lsu_way_hit_or  =  |lsu_way_hit[3:0];
-assign lsu_way_hit_or  =  |cache_way_hit_buf1[3:0]; // Bug 3940
+assign lsu_way_hit_or  =  |cache_way_hit_buf1; // Bug 3940
    
 //assign  stb_byp_pkt_vld_e = st_inst_vld_e & ~(ldsta_internal_e & alt_space_e);
 assign  ld_pcx_pkt_vld_e = ld_inst_vld_e & ~(ldsta_internal_e & alt_space_e);
@@ -7350,62 +7389,64 @@ assign  lsu_no_spc_pref[3:0] = no_spc_pref[3:0];
 
    assign lsu_bist_e = lsu_bist_wvld_e | lsu_bist_rvld_e;
 
-   wire [10:0]      lmq_pcx_pkt_addr_din;
+   wire [`L1D_ADDRESS_HI:0]      lmq_pcx_pkt_addr_din;
 
    wire [3:0] dfq_byp_thrd_sel;
    
-mux4ds #(11) lmq_pcx_pkt_addr_mux (
-       .in0 ({lmq0_pcx_pkt_addr[10:0]}),
-       .in1 ({lmq1_pcx_pkt_addr[10:0]}),
-       .in2 ({lmq2_pcx_pkt_addr[10:0]}),
-       .in3 ({lmq3_pcx_pkt_addr[10:0]}),
+mux4ds #(`L1D_ADDRESS_HI+1) lmq_pcx_pkt_addr_mux (
+       .in0 ({lmq0_pcx_pkt_addr[`L1D_ADDRESS_HI:0]}),
+       .in1 ({lmq1_pcx_pkt_addr[`L1D_ADDRESS_HI:0]}),
+       .in2 ({lmq2_pcx_pkt_addr[`L1D_ADDRESS_HI:0]}),
+       .in3 ({lmq3_pcx_pkt_addr[`L1D_ADDRESS_HI:0]}),
        .sel0(dfq_byp_thrd_sel[0]),
        .sel1(dfq_byp_thrd_sel[1]),
        .sel2(dfq_byp_thrd_sel[2]),
        .sel3(dfq_byp_thrd_sel[3]),
-       .dout({lmq_pcx_pkt_addr_din[10:0]})
+       .dout({lmq_pcx_pkt_addr_din[`L1D_ADDRESS_HI:0]})
 );
                     
-dffe_s #(11)  lmq_pcx_pkt_addr_ff (
-           .din    ({lmq_pcx_pkt_addr_din[10:0]}),
-           .q      ({lmq_pcx_pkt_addr[10:0]}),
+dffe_s #(`L1D_ADDRESS_HI+1)  lmq_pcx_pkt_addr_ff (
+           .din    ({lmq_pcx_pkt_addr_din[`L1D_ADDRESS_HI:0]}),
+           .q      ({lmq_pcx_pkt_addr[`L1D_ADDRESS_HI:0]}),
            .en     (dfq_byp_ff_en),
            .clk    (clk),
            .se     (se),       .si (),          .so ()
            );
 
 
-   wire [10:4] lmq_pcx_pkt_addr_minbf;
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b10 (.a(lmq_pcx_pkt_addr[10]), .z(lmq_pcx_pkt_addr_minbf[10]));
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b9 (.a(lmq_pcx_pkt_addr[9]), .z(lmq_pcx_pkt_addr_minbf[9]));
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b8 (.a(lmq_pcx_pkt_addr[8]), .z(lmq_pcx_pkt_addr_minbf[8]));
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b7 (.a(lmq_pcx_pkt_addr[7]), .z(lmq_pcx_pkt_addr_minbf[7]));
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b6 (.a(lmq_pcx_pkt_addr[6]), .z(lmq_pcx_pkt_addr_minbf[6]));
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b5 (.a(lmq_pcx_pkt_addr[5]), .z(lmq_pcx_pkt_addr_minbf[5]));
-   bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b4 (.a(lmq_pcx_pkt_addr[4]), .z(lmq_pcx_pkt_addr_minbf[4]));
+   wire [`L1D_ADDRESS_HI:4] lmq_pcx_pkt_addr_minbf;
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b10 (.a(lmq_pcx_pkt_addr[10]), .z(lmq_pcx_pkt_addr_minbf[10]));
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b9 (.a(lmq_pcx_pkt_addr[9]), .z(lmq_pcx_pkt_addr_minbf[9]));
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b8 (.a(lmq_pcx_pkt_addr[8]), .z(lmq_pcx_pkt_addr_minbf[8]));
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b7 (.a(lmq_pcx_pkt_addr[7]), .z(lmq_pcx_pkt_addr_minbf[7]));
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b6 (.a(lmq_pcx_pkt_addr[6]), .z(lmq_pcx_pkt_addr_minbf[6]));
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b5 (.a(lmq_pcx_pkt_addr[5]), .z(lmq_pcx_pkt_addr_minbf[5]));
+   // bw_u1_minbuf_5x UZfix_lmq_pcx_pkt_addr_minbf_b4 (.a(lmq_pcx_pkt_addr[4]), .z(lmq_pcx_pkt_addr_minbf[4]));
+   assign lmq_pcx_pkt_addr_minbf = lmq_pcx_pkt_addr[`L1D_ADDRESS_HI:4];
    
    
 assign           lmq_ld_addr_b3 = lmq_pcx_pkt_addr[3];
    
    
-assign  dcache_fill_addr_e[10:0] =
-{11{lsu_dc_iob_access_e}}               & {dcache_iob_addr_e[7:0],3'b000} |
-{11{lsu_bist_wvld_e | lsu_bist_rvld_e}} & {mbist_dcache_index[6:0], mbist_dcache_word, 3'b000} | 
-{11{lsu_diagnstc_wr_src_sel_e}}         & lsu_diagnstc_wr_addr_e[10:0] |
-{11{lsu_dfq_st_vld}}                    & st_dcfill_addr[10:0] |
-{11{lsu_dfq_ld_vld}}                    & {lmq_pcx_pkt_addr_minbf[10:4], lmq_pcx_pkt_addr[3:0]}; 
+assign  dcache_fill_addr_e[`L1D_ADDRESS_HI:0] =
+{`L1D_ADDRESS_HI+1{lsu_dc_iob_access_e}}               & {dcache_iob_addr_e[`L1D_ADDRESS_HI-3:0],3'b000} |
+{`L1D_ADDRESS_HI+1{lsu_bist_wvld_e | lsu_bist_rvld_e}} & {mbist_dcache_index[`L1D_ADDRESS_HI-4:0], mbist_dcache_word, 3'b000} | 
+{`L1D_ADDRESS_HI+1{lsu_diagnstc_wr_src_sel_e}}         & lsu_diagnstc_wr_addr_e[`L1D_ADDRESS_HI:0] |
+{`L1D_ADDRESS_HI+1{lsu_dfq_st_vld}}                    & st_dcfill_addr[`L1D_ADDRESS_HI:0] |
+{`L1D_ADDRESS_HI+1{lsu_dfq_ld_vld}}                    & {lmq_pcx_pkt_addr_minbf[`L1D_ADDRESS_HI:4], lmq_pcx_pkt_addr[3:0]}; 
 
-assign lsu_dcache_fill_addr_e[10:3] = dcache_fill_addr_e[10:3];  
+assign lsu_dcache_fill_addr_e[`L1D_ADDRESS_HI:3] = dcache_fill_addr_e[`L1D_ADDRESS_HI:3];  
 
-   wire [10:4] dcache_fill_addr_e_tmp;
-assign dcache_fill_addr_e_tmp[10:4]    = dcache_fill_addr_e[10:4];  
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b10 ( .a(dcache_fill_addr_e_tmp[10]),  .z(lsu_dcache_fill_addr_e_err[10]));
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b9  ( .a(dcache_fill_addr_e_tmp[9]),  .z(lsu_dcache_fill_addr_e_err[9] ));
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b8  ( .a(dcache_fill_addr_e_tmp[8]),  .z(lsu_dcache_fill_addr_e_err[8]));
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b7  ( .a(dcache_fill_addr_e_tmp[7]),  .z(lsu_dcache_fill_addr_e_err[7]));
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b6  ( .a(dcache_fill_addr_e_tmp[6]),  .z(lsu_dcache_fill_addr_e_err[6]));
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b5  ( .a(dcache_fill_addr_e_tmp[5]),  .z(lsu_dcache_fill_addr_e_err[5]));
-bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b4  ( .a(dcache_fill_addr_e_tmp[4]),  .z(lsu_dcache_fill_addr_e_err[4]));
+   wire [`L1D_ADDRESS_HI:4] dcache_fill_addr_e_tmp;
+assign dcache_fill_addr_e_tmp[`L1D_ADDRESS_HI:4]    = dcache_fill_addr_e[`L1D_ADDRESS_HI:4];
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b10 ( .a(dcache_fill_addr_e_tmp[10]),  .z(lsu_dcache_fill_addr_e_err[10]));
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b9  ( .a(dcache_fill_addr_e_tmp[9]),  .z(lsu_dcache_fill_addr_e_err[9] ));
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b8  ( .a(dcache_fill_addr_e_tmp[8]),  .z(lsu_dcache_fill_addr_e_err[8]));
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b7  ( .a(dcache_fill_addr_e_tmp[7]),  .z(lsu_dcache_fill_addr_e_err[7]));
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b6  ( .a(dcache_fill_addr_e_tmp[6]),  .z(lsu_dcache_fill_addr_e_err[6]));
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b5  ( .a(dcache_fill_addr_e_tmp[5]),  .z(lsu_dcache_fill_addr_e_err[5]));
+// bw_u1_buf_30x UZfix_lsu_dcache_fill_addr_e_err_b4  ( .a(dcache_fill_addr_e_tmp[4]),  .z(lsu_dcache_fill_addr_e_err[4]));
+assign lsu_dcache_fill_addr_e_err[`L1D_ADDRESS_HI:4] = dcache_fill_addr_e[`L1D_ADDRESS_HI:4];
 
 // used as ld bypass 
 assign dcache_wr_addr_e[2:0] = dcache_fill_addr_e[2:0];
@@ -7463,19 +7504,22 @@ dffe_s #(1)  lmq_ldd_vld_ff (
            );
                        
 //bist
-wire [1:0] bist_way_enc_e;
-wire [3:0] bist_way_e;
+wire [`L1D_WAY_MASK] bist_way_enc_e;
+reg [`L1D_WAY_ARRAY_MASK] bist_way_e;
 
 
-assign bist_way_enc_e[1:0] =  lsu_dc_iob_access_e ?  
-       lsu_dcache_iob_way_e[1:0] : mbist_dcache_way[1:0] ;
+assign bist_way_enc_e[`L1D_WAY_MASK] =  lsu_dc_iob_access_e ?  
+       lsu_dcache_iob_way_e[`L1D_WAY_MASK] : mbist_dcache_way[`L1D_WAY_MASK] ;
    
-assign  bist_way_e[0] = ~bist_way_enc_e[1] & ~bist_way_enc_e[0] ;
-assign  bist_way_e[1] = ~bist_way_enc_e[1] &  bist_way_enc_e[0] ;
-assign  bist_way_e[2] =  bist_way_enc_e[1] & ~bist_way_enc_e[0] ;
-assign  bist_way_e[3] =  bist_way_enc_e[1] &  bist_way_enc_e[0] ;
+// assign  bist_way_e[0] = ~bist_way_enc_e[1] & ~bist_way_enc_e[0] ;
+// assign  bist_way_e[1] = ~bist_way_enc_e[1] &  bist_way_enc_e[0] ;
+// assign  bist_way_e[2] =  bist_way_enc_e[1] & ~bist_way_enc_e[0] ;
+// assign  bist_way_e[3] =  bist_way_enc_e[1] &  bist_way_enc_e[0] ;
+<%
+   GenPriorityDecoder("bist_way_enc_e", "bist_way_e", CONFIG_L1D_ASSOCIATIVITY)
+%>
 
-assign lsu_bist_rsel_way_e[3:0] = bist_way_e[3:0];
+assign lsu_bist_rsel_way_e[`L1D_WAY_ARRAY_MASK] = bist_way_e[`L1D_WAY_ARRAY_MASK];
 
    wire lmq_l2fill_fp_din;
 assign    lmq_l2fill_fp_din =
@@ -7508,42 +7552,49 @@ dffe_s #(1) lmq_ncache_ld_ff (
            );   
                          
 //lmq
-   wire [1:0]      lmq_ldfill_way_din;
+   wire [`L1D_WAY_MASK]      lmq_ldfill_way_din;
    
-mux4ds #(2) lmq_ldfill_way_mux (
-       .in0 ({lmq0_pcx_pkt_way[1:0]}),
-       .in1 ({lmq1_pcx_pkt_way[1:0]}),
-       .in2 ({lmq2_pcx_pkt_way[1:0]}),
-       .in3 ({lmq3_pcx_pkt_way[1:0]}),
+mux4ds #(`L1D_WAY_WIDTH) lmq_ldfill_way_mux (
+       .in0 ({lmq0_pcx_pkt_way[`L1D_WAY_MASK]}),
+       .in1 ({lmq1_pcx_pkt_way[`L1D_WAY_MASK]}),
+       .in2 ({lmq2_pcx_pkt_way[`L1D_WAY_MASK]}),
+       .in3 ({lmq3_pcx_pkt_way[`L1D_WAY_MASK]}),
        .sel0(dfq_byp_thrd_sel[0]),
        .sel1(dfq_byp_thrd_sel[1]),
        .sel2(dfq_byp_thrd_sel[2]),
        .sel3(dfq_byp_thrd_sel[3]),
-       .dout({lmq_ldfill_way_din[1:0]})
+       .dout({lmq_ldfill_way_din[`L1D_WAY_MASK]})
 );
-   wire [1:0]      lmq_ldfill_way;
+   wire [`L1D_WAY_MASK]      lmq_ldfill_way;
                     
-dffe_s #(2)  lmq_ldfill_way_ff (
-           .din    ({lmq_ldfill_way_din[1:0]}),
-           .q      ({lmq_ldfill_way[1:0]}),
+dffe_s #(`L1D_WAY_WIDTH)  lmq_ldfill_way_ff (
+           .din    ({lmq_ldfill_way_din[`L1D_WAY_MASK]}),
+           .q      ({lmq_ldfill_way[`L1D_WAY_MASK]}),
            .en     (dfq_byp_ff_en),
            .clk    (clk),
            .se     (se),       .si (),          .so ()
            );
 
-wire [1:0] dcache_fill_way_enc_e;
+wire [`L1D_WAY_MASK] dcache_fill_way_enc_e;
    
-assign dcache_fill_way_enc_e[1:0] = 
-{2{lsu_dc_iob_access_e}}               & lsu_dcache_iob_way_e[1:0] |
-{2{lsu_bist_e}}                        & bist_way_enc_e[1:0]       | 
-{2{lsu_diagnstc_wr_src_sel_e}}         & lsu_diagnstc_wr_way_e[1:0]|
-{2{lsu_dfq_st_vld}}                    & lsu_st_way_e[1:0]         |
-{2{lsu_dfq_ld_vld}}                    & lmq_ldfill_way[1:0]; 
+assign dcache_fill_way_enc_e[`L1D_WAY_MASK] = 
+{`L1D_WAY_WIDTH{lsu_dc_iob_access_e}}               & lsu_dcache_iob_way_e[`L1D_WAY_MASK] |
+{`L1D_WAY_WIDTH{lsu_bist_e}}                        & bist_way_enc_e[`L1D_WAY_MASK]       | 
+{`L1D_WAY_WIDTH{lsu_diagnstc_wr_src_sel_e}}         & lsu_diagnstc_wr_way_e[`L1D_WAY_MASK]|
+{`L1D_WAY_WIDTH{lsu_dfq_st_vld}}                    & lsu_st_way_e[`L1D_WAY_MASK]         |
+{`L1D_WAY_WIDTH{lsu_dfq_ld_vld}}                    & lmq_ldfill_way[`L1D_WAY_MASK]; 
 
-   assign lsu_dcache_fill_way_e[0] =   ~dcache_fill_way_enc_e[1] & ~dcache_fill_way_enc_e[0];
-   assign lsu_dcache_fill_way_e[1] =   ~dcache_fill_way_enc_e[1] &  dcache_fill_way_enc_e[0];
-   assign lsu_dcache_fill_way_e[2] =    dcache_fill_way_enc_e[1] & ~dcache_fill_way_enc_e[0];
-   assign lsu_dcache_fill_way_e[3] =    dcache_fill_way_enc_e[1] &  dcache_fill_way_enc_e[0];
+   // assign lsu_dcache_fill_way_e[0] =   ~dcache_fill_way_enc_e[1] & ~dcache_fill_way_enc_e[0];
+   // assign lsu_dcache_fill_way_e[1] =   ~dcache_fill_way_enc_e[1] &  dcache_fill_way_enc_e[0];
+   // assign lsu_dcache_fill_way_e[2] =    dcache_fill_way_enc_e[1] & ~dcache_fill_way_enc_e[0];
+   // assign lsu_dcache_fill_way_e[3] =    dcache_fill_way_enc_e[1] &  dcache_fill_way_enc_e[0];
+
+<%
+  template = '''
+      assign lsu_dcache_fill_way_e[__WAY] = (dcache_fill_way_enc_e == __WAY);
+  '''
+  GenFor(template, CONFIG_L1D_ASSOCIATIVITY);
+%>
 
 //ld_rq_type
 
