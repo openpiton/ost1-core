@@ -68,7 +68,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-module bw_r_rf16x32 (/*AUTOARG*/
+module sram_l1i_val (/*AUTOARG*/
    // Outputs
    dout, so,
    // Inputs

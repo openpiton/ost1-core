@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 `ifdef DEFAULT_NETTYPE_NONE
 `default_nettype none
 `endif
-module sram_1rw_128x288
+module sram_l1d_data
 (
 input wire MEMCLK,
 input wire RESET_N,

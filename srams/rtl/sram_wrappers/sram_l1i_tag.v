@@ -33,27 +33,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 `ifdef DEFAULT_NETTYPE_NONE
 `default_nettype none
 `endif
-module sram_1rw_256x272
+module sram_l1i_tag
 (
 input wire MEMCLK,
 input wire RESET_N,
 input wire CE,
-input wire [7:0] A,
+input wire [6:0] A,
 input wire RDWEN,
-input wire [271:0] BW,
-input wire [271:0] DIN,
-output wire [271:0] DOUT,
+input wire [131:0] BW,
+input wire [131:0] DIN,
+output wire [131:0] DOUT,
 input wire [`BIST_OP_WIDTH-1:0] BIST_COMMAND,
 input wire [`SRAM_WRAPPER_BUS_WIDTH-1:0] BIST_DIN,
 output reg [`SRAM_WRAPPER_BUS_WIDTH-1:0] BIST_DOUT,
 input wire [`BIST_ID_WIDTH-1:0] SRAMID
 );
-reg [271:0] cache [255:0];
+reg [131:0] cache [127:0];
 
 integer i;
 initial
 begin
-   for (i = 0; i < 256; i = i + 1)
+   for (i = 0; i < 128; i = i + 1)
    begin
       cache[i] = 0;
    end
@@ -61,7 +61,7 @@ end
 
 
 
-   reg [271:0] dout_f;
+   reg [131:0] dout_f;
 
    assign DOUT = dout_f;
 

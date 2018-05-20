@@ -1,7 +1,7 @@
 // Modified by Princeton University on June 9th, 2015
 // ========== Copyright Header Begin ==========================================
 //
-// OpenSPARC T1 Processor File: bw_r_idct.v
+// OpenSPARC T1 Processor File: bw_r_dct.v
 // Copyright (c) 2006 Sun Microsystems, Inc.  All Rights Reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES.
 //
@@ -21,7 +21,7 @@
 // ========== Copyright Header End ============================================
 ////////////////////////////////////////////////////////////////////////
 /*
- //  Module Name:  bw_r_idct.v
+ //  Module Name:  bw_r_dct.v
  //  Description:
  //    Contains the RTL for the icache and dcache tag blocks.
  //    This is a 1RW 512 entry X 33b macro, with 132b rd and 132b wr,
@@ -50,21 +50,22 @@
 
 //PITON_PROTO enables all FPGA related modifications
 `ifdef PITON_PROTO
-`define FPGA_SYN_IDCT
+`define FPGA_SYN_DCT
 `endif
 
-`ifdef IBM_SRAM_CACHE_TAG_MODEL_CHECKER
+//`ifdef IBM_SRAM_CACHE_TAG_MODEL_CHECKER
+`ifdef NO_USE_IBM_SRAMS
 
-`ifdef FPGA_SYN_IDCT
+`ifdef FPGA_SYN_DCT
 
-`ifndef IBM_SRAM_CACHE_TAG
-module bw_r_idct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
-`else
-module bw_r_idct_orig(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
-`endif
-	si, reset_l, sehold, rst_tri_en, index0_x, index1_x, index_sel_x,
-	dec_wrway_x, rdreq_x, wrreq_x, wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
-	wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
+//`ifndef IBM_SRAM_CACHE_TAG
+module bw_r_dct (rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
+//`else
+//module bw_r_dct_orig(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
+//`endif
+  si, reset_l, sehold, rst_tri_en, index0_x, index1_x, index_sel_x,
+  dec_wrway_x, rdreq_x, wrreq_x, wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
+  wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
   wrtag_w3_x, adj,
 
   // sram wrapper interface
@@ -74,27 +75,27 @@ module bw_r_idct_orig(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, 
   rtap_srams_bist_data
   );
 
-	input			rclk;
-	input			se;
-	input			si;
-	input			reset_l;
-	input			sehold;
-	input			rst_tri_en;
-	input	[6:0]		index0_x;
-	input	[6:0]		index1_x;
-	input			index_sel_x;
-	input	[3:0]		dec_wrway_x;
-	input			rdreq_x;
-	input			wrreq_x;
-	input	[32:0]		wrtag_w0_y;
-	input	[32:0]		wrtag_w1_y;
-	input	[32:0]		wrtag_w2_y;
-	input	[32:0]		wrtag_w3_y;
+  input     rclk;
+  input     se;
+  input     si;
+  input     reset_l;
+  input     sehold;
+  input     rst_tri_en;
+  input [6:0]   index0_x;
+  input [6:0]   index1_x;
+  input     index_sel_x;
+  input [3:0]   dec_wrway_x;
+  input     rdreq_x;
+  input     wrreq_x;
+  input [32:0]    wrtag_w0_y;
+  input [32:0]    wrtag_w1_y;
+  input [32:0]    wrtag_w2_y;
+  input [32:0]    wrtag_w3_y;
   input [32:0]    wrtag_w0_x;
   input [32:0]    wrtag_w1_x;
   input [32:0]    wrtag_w2_x;
   input [32:0]    wrtag_w3_x;
-	input	[3:0]		adj;
+  input [3:0]   adj;
 
   // sram wrapper interface
   output [`SRAM_WRAPPER_BUS_WIDTH-1:0] srams_rtap_data;
@@ -107,74 +108,74 @@ module bw_r_idct_orig(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, 
                 | rtap_srams_bist_data
                 | sramid;
 
-	output	[32:0]		rdtag_w0_y;
-	output	[32:0]		rdtag_w1_y;
-	output	[32:0]		rdtag_w2_y;
-	output	[32:0]		rdtag_w3_y;
-	output			so;
+  output  [32:0]    rdtag_w0_y;
+  output  [32:0]    rdtag_w1_y;
+  output  [32:0]    rdtag_w2_y;
+  output  [32:0]    rdtag_w3_y;
+  output      so;
 
-	wire			clk;
-	reg	[6:0]		index_y;
-	reg			rdreq_y;
-	reg			wrreq_y;
-	reg	[3:0]		dec_wrway_y;
-	wire	[6:0]		index_x;
-	wire	[3:0]		we;
+  wire      clk;
+  reg [6:0]   index_y;
+  reg     rdreq_y;
+  reg     wrreq_y;
+  reg [3:0]   dec_wrway_y;
+  wire  [6:0]   index_x;
+  wire  [3:0]   we;
 
-   	reg [131:0]  rdtag_sa_y; //for error_inject XMR
+    reg [131:0]  rdtag_sa_y; //for error_inject XMR
 
-	assign clk = rclk;
-	assign index_x = (index_sel_x ? index1_x : index0_x);
+  assign clk = rclk;
+  assign index_x = (index_sel_x ? index1_x : index0_x);
     assign we = ({4 {((wrreq_y & reset_l) & (~rst_tri_en))}} & dec_wrway_y);
 
-	always @(posedge clk) begin
-	  if (~sehold) begin
-	    rdreq_y <= rdreq_x;
-	    wrreq_y <= wrreq_x;
-	    index_y <= index_x;
-	    dec_wrway_y <= dec_wrway_x;
-	  end
-	end
+  always @(posedge clk) begin
+    if (~sehold) begin
+      rdreq_y <= rdreq_x;
+      wrreq_y <= wrreq_x;
+      index_y <= index_x;
+      dec_wrway_y <= dec_wrway_x;
+    end
+  end
 
-	bw_r_idct_array ictag_ary_00(
-		.we	(we[0]),
-		.clk	(clk),
+  bw_r_dct_array ictag_ary_00(
+    .we (we[0]),
+    .clk  (clk),
         .way (2'b00),
-		.rd_data(rdtag_w0_y),
-		.wr_data(wrtag_w0_y),
-		.addr	(index_y),
+    .rd_data(rdtag_w0_y),
+    .wr_data(wrtag_w0_y),
+    .addr (index_y),
         .dec_wrway_y (dec_wrway_y));
 
-	bw_r_idct_array ictag_ary_01(
-		.we	(we[1]),
-		.clk	(clk),
+  bw_r_dct_array ictag_ary_01(
+    .we (we[1]),
+    .clk  (clk),
         .way (2'b01),
-		.rd_data(rdtag_w1_y),
-		.wr_data(wrtag_w1_y),
-		.addr	(index_y),
+    .rd_data(rdtag_w1_y),
+    .wr_data(wrtag_w1_y),
+    .addr (index_y),
         .dec_wrway_y (dec_wrway_y));
 
-	bw_r_idct_array ictag_ary_10(
-		.we	(we[2]),
-		.clk	(clk),
+  bw_r_dct_array ictag_ary_10(
+    .we (we[2]),
+    .clk  (clk),
         .way(2'b10),
-		.rd_data(rdtag_w2_y),
-		.wr_data(wrtag_w2_y),
-		.addr	(index_y),
+    .rd_data(rdtag_w2_y),
+    .wr_data(wrtag_w2_y),
+    .addr (index_y),
         .dec_wrway_y (dec_wrway_y));
 
-	bw_r_idct_array ictag_ary_11(
-		.we	(we[3]),
-		.clk	(clk),
+  bw_r_dct_array ictag_ary_11(
+    .we (we[3]),
+    .clk  (clk),
         .way(2'b11),
-		.rd_data(rdtag_w3_y),
-		.wr_data(wrtag_w3_y),
-		.addr	(index_y),
+    .rd_data(rdtag_w3_y),
+    .wr_data(wrtag_w3_y),
+    .addr (index_y),
         .dec_wrway_y (dec_wrway_y));
 
 endmodule
 
-module bw_r_idct_array(we, clk, rd_data, wr_data, addr,dec_wrway_y,way);
+module bw_r_dct_array(we, clk, rd_data, wr_data, addr,dec_wrway_y,way);
 
 input we;
 input clk;
@@ -185,13 +186,13 @@ input [1:0] way;
 output [32:0] rd_data;
 reg [32:0] rd_data;
 
-reg	[32:0]		array[511:0] /* synthesis syn_ramstyle = block_ram  syn_ramstyle = no_rw_check */ ;
+reg [32:0]    array[511:0] /* synthesis syn_ramstyle = block_ram  syn_ramstyle = no_rw_check */ ;
 integer i;
 
 initial begin
 // `ifdef DO_MEM_INIT
 //     // Add the memory init file in the database
-//     $readmemb("/import/dtg-data11/sandeep/niagara/design/sys/iop/srams/rtl/mem_init_idct.txt",array);
+//     $readmemb("/import/dtg-data11/sandeep/niagara/design/sys/iop/srams/rtl/mem_init_dct.txt",array);
 // `endif
   // Tri: nonsynthesizable
   for (i = 0; i < 511; i = i + 1)
@@ -200,23 +201,23 @@ initial begin
   end
 end
 
-	always @(negedge clk) begin
-	  if (we)
+  always @(negedge clk) begin
+    if (we)
           begin
               array[addr] <= wr_data;
           end
-	  else
+    else
           rd_data <= array[addr];
-	end
+  end
 endmodule
 
 `else
 
-`ifndef IBM_SRAM_CACHE_TAG
-module bw_r_idct(/*AUTOARG*/
-`else
-module bw_r_idct_orig(/*AUTOARG*/
-`endif
+//`ifndef IBM_SRAM_CACHE_TAG
+module bw_r_dct(/*AUTOARG*/
+//`else
+//module bw_r_dct_orig(/*AUTOARG*/
+//`endif
    // Outputs
    rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so,
    // Inputs
@@ -250,7 +251,7 @@ module bw_r_idct_orig(/*AUTOARG*/
                                 // per 33b
 
    input          rdreq_x,      // read enable
-		              wrreq_x;      // write enable
+                  wrreq_x;      // write enable
 
    // Don't use rdreq and wrreq to gate off the clock, since these are
    // critical.  A separate power down signal can be supplied if
@@ -302,7 +303,7 @@ module bw_r_idct_orig(/*AUTOARG*/
 
    reg [6:0]    index_y;
    reg          rdreq_y,
-		            wrreq_y;
+                wrreq_y;
    reg [3:0]    dec_wrway_y;
 
    wire [6:0]   index_x;
@@ -353,20 +354,20 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
    always @(/*AUTOSENSE*/ /*memory or*/ index_y or rdreq_y or reset_l
             or wrreq_y)
      begin
-	      if (rdreq_y & reset_l)
+        if (rdreq_y & reset_l)
           begin
              if (wrreq_y)    // rd_wr conflict
-	             begin
-	                rdtag_bl_y = {132{1'bx}};
-	             end
+               begin
+                  rdtag_bl_y = {132{1'bx}};
+               end
 
-	           else   // no write, read only
-	             begin
+             else   // no write, read only
+               begin
                   rdtag_bl_y[32:0] = ictag_ary[{index_y,2'b00}];  // way0
                   rdtag_bl_y[65:33] = ictag_ary[{index_y,2'b01}]; // way1
                   rdtag_bl_y[98:66] = ictag_ary[{index_y,2'b10}]; // way2
                   rdtag_bl_y[131:99] = ictag_ary[{index_y,2'b11}];// way3
-	             end
+               end
           end
         else    // no read
           begin
@@ -414,17 +415,17 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
    // Writes should be blocked off during scan shift.
    always @ (negedge clk)
      begin
-	   if (wrreq_y & reset_l & ~rst_tri_en)
-	   begin
+     if (wrreq_y & reset_l & ~rst_tri_en)
+     begin
              if (dec_wrway_y[0])
-	             ictag_ary[{index_y, 2'b00}] = wrtag_w0_y;
+               ictag_ary[{index_y, 2'b00}] = wrtag_w0_y;
              if (dec_wrway_y[1])
-	             ictag_ary[{index_y, 2'b01}] = wrtag_w1_y;
+               ictag_ary[{index_y, 2'b01}] = wrtag_w1_y;
              if (dec_wrway_y[2])
-	             ictag_ary[{index_y, 2'b10}] = wrtag_w2_y;
+               ictag_ary[{index_y, 2'b10}] = wrtag_w2_y;
              if (dec_wrway_y[3])
-	             ictag_ary[{index_y, 2'b11}] = wrtag_w3_y;
-	   end
+               ictag_ary[{index_y, 2'b11}] = wrtag_w3_y;
+     end
      end
 
    // TBD: Need to model rd-wr contention
@@ -446,8 +447,8 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
    begin
       if (rdreq_y & wrreq_y & reset_l)
         begin
-           // 0in <fire -message "FATAL ERROR: rd and wr contention in idct"
-           //$error("IDtag Contention", "ERROR rd and wr contention in idct");
+           // 0in <fire -message "FATAL ERROR: rd and wr contention in dct"
+           //$error("IDtag Contention", "ERROR rd and wr contention in dct");
         end
    end // always @ (negedge clk)
 
@@ -465,8 +466,8 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
 //
 //   always @ (negedge clk)
 //     begin
-//	      if (wrreq_y & ~se)
-//	        begin
+//        if (wrreq_y & ~se)
+//          begin
 //             if (rdreq_y) begin // rd/wr contention
 //               case (dec_wrway_y)
 //                 4'b0001 : w0[index_y[6:0]] ={30{1'bx}};
@@ -483,19 +484,19 @@ l1_tag l1_tag ( .nclk(~clk), .adr(index_y[6:0]), .we(we), .wm(wm),
 //                 4'b1000 : w3[index_y[6:0]] = wrtag_w3_y[29:0];
 //               endcase // case(wrway_y)
 //             end
-//	        end
+//          end
 //     end
 
    // synopsys translate_on
 
 
-endmodule // bw_r_idct
+endmodule // bw_r_dct
 `endif
 
 `endif // checker model
 
 `ifdef IBM_SRAM_CACHE_TAG
-module bw_r_idct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
+module bw_r_dct(rdtag_w0_y, rdtag_w1_y, rdtag_w2_y, rdtag_w3_y, so, rclk, se,
   si, reset_l, sehold, rst_tri_en, index0_x, index1_x, index_sel_x,
   dec_wrway_x, rdreq_x, wrreq_x, wrtag_w0_y, wrtag_w1_y, wrtag_w2_y,
   wrtag_w3_y, wrtag_w0_x, wrtag_w1_x, wrtag_w2_x,
@@ -604,7 +605,7 @@ end
   wire  [32:0]    rdtag_w2_y;
   wire  [32:0]    rdtag_w3_y;
 
-sram_1rw_128x132 cache
+sram_l1d_tag cache
 (
   .MEMCLK(rclk),
     .RESET_N(reset_l),
@@ -637,7 +638,7 @@ sram_1rw_128x132 cache
    wire [131:0] dout = {rdtag_w3_y, rdtag_w2_y, rdtag_w1_y, rdtag_w0_y};
    wire [131:0] dout_ref = {rdtag_w3_y_ref, rdtag_w2_y_ref, rdtag_w1_y_ref, rdtag_w0_y_ref};
 
-   bw_r_idct_orig cache_orig(
+   bw_r_dct_orig cache_orig(
       .index0_x(index0_x),
       .index1_x(index1_x),
       .index_sel_x(index_sel_x),
@@ -679,9 +680,9 @@ begin
   // #1;
    if (rdreq_y == 1'b1 && (dout[131:0] != dout_ref[131:0]))
    begin
-      $display("%d : Simulation -> FAIL(%0s)", $time, "bw_r_idct_ref not same");
+      $display("%d : Simulation -> FAIL(%0s)", $time, "bw_r_dct_ref not same");
       repeat(5)@(posedge rclk);
-      `MONITOR_PATH.fail("w_r_idct_ref not same");
+      `MONITOR_PATH.fail("w_r_dct_ref not same");
    end
 end
 
