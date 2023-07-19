@@ -1,7 +1,7 @@
 // Modified by Princeton University on June 9th, 2015
 // ========== Copyright Header Begin ==========================================
 // 
-// OpenSPARC T1 Processor File: Flist.sparc_top
+// OpenSPARC T1 Processor File: fpu_in2_gt_in1_2b.v
 // Copyright (c) 2006 Sun Microsystems, Inc.  All Rights Reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES.
 // 
@@ -19,15 +19,41 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // 
 // ========== Copyright Header End ============================================
-sparc_tri.v
-sparc_core.v
-sparc.v
-cpx_arbitrator.v
-ccx_l15_transducer.v
-l15_cpxencoder.v
-pcx_buffer.v
-pcx_decoder.v
-// bw_clk_cl_sparc_cmp.v
-cpx_spc_rpt.v
-cpx_spc_buf.v
-cfg_asi.v
+///////////////////////////////////////////////////////////////////////////////
+//
+//	Two bit comparison of two inputs that can have any value.
+//
+///////////////////////////////////////////////////////////////////////////////
+
+module fpu_in2_gt_in1_2b (
+	din1,
+	din2,
+
+	din2_neq_din1,
+	din2_gt_din1
+);
+
+
+input [1:0]	din1;			// input 1- 3 bits
+input [1:0]	din2;			// input 2- 3 bits
+
+output		din2_neq_din1;		// input 2 doesn't equal input 1
+output		din2_gt_din1;		// input 2 is greater than input 1
+
+
+wire [1:0]	din2_eq_din1;
+wire		din2_neq_din1;
+wire		din2_gt_din1;
+
+
+assign din2_eq_din1[1:0]= (~(din1 ^ din2));
+
+assign din2_neq_din1= (!(&din2_eq_din1));
+
+assign din2_gt_din1= ((!din1[1]) && din2[1])
+		|| (din2_eq_din1[1] && (!din1[0]) && din2[0]);
+
+
+endmodule
+
+

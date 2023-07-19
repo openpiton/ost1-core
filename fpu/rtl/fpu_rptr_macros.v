@@ -1,7 +1,7 @@
 // Modified by Princeton University on June 9th, 2015
 // ========== Copyright Header Begin ==========================================
 // 
-// OpenSPARC T1 Processor File: Flist.sparc_top
+// OpenSPARC T1 Processor File: fpu_rptr_macros.v
 // Copyright (c) 2006 Sun Microsystems, Inc.  All Rights Reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES.
 // 
@@ -19,15 +19,27 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 // 
 // ========== Copyright Header End ============================================
-sparc_tri.v
-sparc_core.v
-sparc.v
-cpx_arbitrator.v
-ccx_l15_transducer.v
-l15_cpxencoder.v
-pcx_buffer.v
-pcx_decoder.v
-// bw_clk_cl_sparc_cmp.v
-cpx_spc_rpt.v
-cpx_spc_buf.v
-cfg_asi.v
+module fpu_bufrpt_grp64 (
+	in,
+	out
+);
+	
+	input [63:0] in;
+	output [63:0] out;
+
+	assign out[63:0] = in[63:0];
+
+endmodule
+
+module fpu_bufrpt_grp32 (
+	in,
+	out
+);
+
+	input [31:0] in;
+	output [31:0] out;
+
+	assign out[31:0] = in[31:0];
+
+endmodule
+
