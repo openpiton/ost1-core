@@ -1,0 +1,22 @@
+*.swp
+*.log
+*a.out
+
+# Ignore Vivado
+.Xil/*
+vivado*.log
+vivado*.str
+
+# Ignore sims logs
+flist
+history.sims
+ucli.key
+
+# Ignore temporary pyv files
+*.v.tmp
+*.h.tmp
+*.tmp.v
+*.tmp.h
+
+# Ignore generated .pyc files (specifically for pyhplib)
+*.pyc
